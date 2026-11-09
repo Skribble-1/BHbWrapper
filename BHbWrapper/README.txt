@@ -2,32 +2,47 @@
   BHbWrapper  -  README
   A Windows window ("BH Bot Controller") that plays Bit Heroes for you
 ==============================================================================
+- - Note - - 
+I tried to make this as simple as possible - so long as you READ, you shouldn't 
+have any trouble getting this to run...(so long as you're on a Windows operating system
+and allow python to install [only Python 3.12 has been tested] along with the packages).
 
-It fishes, and it runs an "AFK chain" (Quest, PVP, World Boss, Raid, Trials,
-Gauntlet, GVG, Expedition, Invasion ...). It is an add-on built on the free
-Bit Heroes bot by 9-9-9-9 (https://github.com/9-9-9-9/Bit-Heroes-bot), whose
-files are all included in this repository.
 
-YOU NEED
-  - A Windows PC and the normal Google Chrome
+  This bot fishes and runs the "AFK chain" (Quest, PVP, World Boss, Raid, Trials,
+Gauntlet, GVG, Expedition, Invasion ...). 
+  This project started off as an add-on built on top of the free Bit Heroes bot 
+by 9-9-9-9 (https://github.com/9-9-9-9/Bit-Heroes-bot), whose files can be found 
+there. 
+  The original version of this bot required use of those files and has since transformed 
+into a standalone bot taking the original concept from the Bit Heroes bot by 9-9-9-9.
+
+YOU'll NEED
+  - A Windows PC
+  - Internet access
+  - Google Chrome browser
   - A Kongregate account that can already play Bit Heroes in your browser:
       https://www.kongregate.com/games/Juppiomenz/bit-heroes
-  - Internet for the first start (it installs Python and a few packages)
 
-  CHROME / KONGREGATE ONLY. The Steam version is NOT supported.
-  You do NOT need Java.
+NOTE - This is the browser version ONLY. The Steam version is NOT supported; do try
+the original Bit Heroes bot by 9-9-9-9 (https://github.com/9-9-9-9/Bit-Heroes-bot)
+if you need steam functionality though additional support is not likely for that.
 
 ------------------------------------------------------------------------------
-  1. DOWNLOAD
+  1. DOWNLOAD / SETUP
 ------------------------------------------------------------------------------
   1. Open  https://github.com/Skribble-1/BHbWrapper
   2. Click the green "Code" button > "Download ZIP".
-  3. Right-click the downloaded .zip > Properties > tick "Unblock" if you see
-     it > OK.  (Skipping this can make Windows block the files.)
-  4. Right-click the .zip > "Extract All..." and extract to a simple place such
-     as your Documents folder. You get one folder: this is "THE BOT FOLDER".
-  5. Do not move the "BHbWrapper" folder out of it: it must stay right next
+  3. Right-click the zip file > "Extract All..." 
+  4. Extract to your desired directory such as your Documents folder. 
+  5. Do not move the "BHPyBot" folder out of it: it must stay right next
      to  ~start_gui.bat.
+
+Expected folder layout:
+  C:\\<Your Directory>\
+    BHbWrapper\
+      BHPyBot\
+      sample_scripts(Legacy)\
+      ~start_gui.bat
 
 ------------------------------------------------------------------------------
   2. START THE WINDOW  (the first start installs what is needed)
@@ -37,62 +52,84 @@ YOU NEED
   3. First time only: it installs Python (if missing) and a few packages. This
      can take several minutes.
        - Click Yes if Windows asks for permission.
-       - If it says Python was just installed, close the black window and
+       - If it says Python was just installed, close the command (black) window and
          double-click ~start_gui.bat again.
-       - Keep the black window open while you use the bot window.
   4. The "BH Bot Controller" window opens. If it asks for the bot folder,
-     pick THE BOT FOLDER.
+     select BHbWrapper.
 
   Hint: right-click ~start_gui.bat > Send to > Desktop (create shortcut) for
   one-click starts later.
+  Hint: Use task scheduler to set it on a schedule to auto run on a set time or 
+  when the computer restarts/logs on for further afk automation.
 
 ------------------------------------------------------------------------------
   3. LINK YOUR GAME ACCOUNT  (button: "Initial Setup Help")  - once
 ------------------------------------------------------------------------------
-  Click "Initial Setup Help" and do its four steps:
-    1. "Open Kongregate in Chrome": log in and wait until Bit Heroes has
-       loaded. Keep that tab open.
-    2. "Copy the console script", then in that Chrome tab press F12, click the
-       "Console" tab, press Ctrl+V and Enter. (If Chrome blocks pasting, type
-       allow pasting , press Enter, and paste again.) Three lines starting
-       with 1.game.kong... appear.
-    3. "Paste from clipboard", choose account number 1, click "Save to
-       user-config.properties". Your old file is kept as a .bak copy.
-    4. "Create the game files". It should say "created ...index1.html".
+On the GUI, Click "Initial Setup Help" and perform the four steps:
+    1. Open Kongregate in Chrome: log in and wait until Bit Heroes has loaded to the 
+main game screen (you can move your character around the map). Keep that tab open.
+    2. Copy the console script:
+In that Chrome tab press F12 to open the developer console, 
+Click the "Console" tab, 
+Press Ctrl+V and Enter. 
+  (If Chrome blocks pasting, follow the instructions - type allow pasting, press Enter, and paste again.) 
+Three lines starting with 1.game.kong... appear.
+    3. Paste from clipboard: 
+Choose account number 1, 
+Click "Save to user-config.properties". 
+Your old file is kept as a .bak copy.
+    4. Create the game files: 
+It should say "created ...index1.html".
 
-  Nothing shows in the Console, or only the word "undefined"?
-    - Clear the Filter box in the Console toolbar (an old filter such as
-      "top" hides the answer) and make sure "Default levels" / "Info" is on.
+------------------------------------------------------------------------------
+Troubleshooting step 3 if needed...
+------------------------------------------------------------------------------
+IF:
+  Nothing shows in the Console, or only the word "undefined"
+    - Clear the Filter box in the Console toolbar (an old filter next to
+      "top" hides the answer)
+    - Make sure "Default levels" / "Info" is on.
     - "undefined" alone on a line AFTER the three lines is normal.
-    - Be on the Kongregate Bit Heroes page, logged in.
-  A second account: log in to it, run steps 1-4 again, choose account number 2
-  (use AFK2.bat for it).
+    - Make sure to be in the game and able to move around while logged into your
+      Kongregate account.
+  You need to setup a second account (not a second character on the same account)
+    - Log into the second account and run steps 1-4 again, choose account number 2 
+      (use AFK2.bat for it).
 
-  KEEP YOUR TOKEN PRIVATE. The "1.game.auth.token=" line in
+
+------------------------------------------------------------------------------
+- - - - - - - - IMPORTANT - - - - - - - -
+------------------------------------------------------------------------------
+KEEP YOUR TOKEN PRIVATE. The "1.game.auth.token=" line in
   user-config.properties works like a password. Never post that file or a
-  screenshot of it. If the bot later cannot log in, the token expired (it
-  changes when you log out of Kongregate): repeat this step.
+  screenshot of it. 
+If the bot later cannot log in, the token may have expired (it changes when you 
+  log in and out out of Kongregate): repeat steps above in the dev console to acquire
+  your new token.
 
 ------------------------------------------------------------------------------
   4. FIRST RUN
 ------------------------------------------------------------------------------
-  1. Script box: BHbWrapper/Fish.bat      Then run box: BHbWrapper/AFK.bat
-     Click Start. A small game window opens by itself and logs in.
-     Fish.bat fishes 18 times (edit the number in the .bat to change it), then
-     AFK.bat runs the full event chain. Between the two the window presses ESC
-     a few times to get back to the main map.
-     Hint: watch the first fishing round. If it does not start fishing, open
-     the fishing screen in the game window yourself.
-  2. Safe test: BHbWrapper/AFK.watch.bat only says what it sees and would do;
-     it never clicks.
-  3. Overrides: the Quest, PVP, World Boss, Raid, Trials, Gauntlet, GVG,
-     Expedition and Invasion buttons choose what each event does. A dot on a
+I recommend trying 'BHPyBot/Fish.bat' in the 'Script' box and in the 'Then run'
+    box: BHPyBot/AFK.bat.
+    Click Start. A small game window opens by itself and logs in.
+    Fish.bat fishes 18 times (at default; edit the number in the .bat to change it), then
+    AFK.bat runs the full event chain. Between the two scripts, the ESC button is pressed
+    a few times to ensure any stray menus are closed.
+
+Note - For a safe test: BHPyBot/AFK.watch.bat only says in the console what it sees and 
+    what it would do; it never clicks. Useful for troubleshooting / testing.
+
+------------------------------------------------------------------------------
+- - - - - - - - Buttons / Controls - - - - - - - -
+------------------------------------------------------------------------------
+Overrides: the Quest, PVP, World Boss, Raid, Trials, Gauntlet, GVG,
+     Expedition, and Invasion buttons choose what each event does. A dot on a
      button means its override is on. They only matter when switched on - your
      normal account settings are the default - and they apply while the bot is
-     running. (Invasion/Gauntlet can target a specific wave/difficulty number;
-     World Boss can wait for other players.)
+     running. When off, your default account settings file is applied.
 
-  Buttons and boxes in the window:
+Buttons and boxes in the window:
     Pause / Force Stop         freeze / end the bot. "Force Stop also closes
                                the game window" closes the game as well.
     Compact log                hides repetitive "waiting" lines.
@@ -106,7 +143,7 @@ YOU NEED
                                click Start (default 14 days).
     Look at the game every     how often the bot checks the screen (seconds).
 
-  Hints:
+Hints:
     - Keep the PC awake (Windows sleep stops the bot) and leave the little game
       window open. Playing the same account elsewhere will disconnect it.
     - The bot recognises the game by pictures, so a game update can break
@@ -122,11 +159,10 @@ YOU NEED
   "Python not found"       Close everything and run ~start_gui.bat again.
   Game window is blank     Close it, then click Start again.
   Bot seems stuck          Screenshots go to  BHbWrapper\out\unknown . When
-                           you ask for help, send one and the log text, but
-                           hide your name and NEVER include the token.
+                           you ask for help, send both associated screenshots.
+                           Hide your name and NEVER include the token.
   Settings seem ignored    Delete BHbWrapper\overrides.json to go back to the
                            defaults.
-  Can't tell what's wrong  The black ~start_gui.bat window shows error text.
 
 ------------------------------------------------------------------------------
   WHICH FILES THE ADD-ON USES (everything else is the original, legacy bot)
@@ -147,7 +183,7 @@ YOU NEED
     bh-client\                         the game page files
     chrome-user-dir\                   the bot's own Chrome profile (automatic)
 
-  LEGACY (original Java bot; NOT used by this add-on, need Java):
+  LEGACY (original Java bot; NOT used by this add-on, You'll need Java):
     src, pom.xml, build.*, release.sh, _.bat, bot.sh, web.bot.bat,
     steam.bot.bat, AFK.web.bat, AFK.steam.bat, help.*, setting.*, client.*,
     prepare-mini-chrome-client.txt, sample-scripts, notes, web, .github, and
@@ -163,7 +199,7 @@ YOU NEED
   (Trials 13-15) and counts rows from a known tier for others. To teach it one:
   open the list, save a screenshot (python bhbot.py snap), then
     python bhbot.py template out\snap\<file>.png trials.tier.12 --rect=x,y,w,h --ink CCCCCC
-  (a box around the text "TIER 12"). Run  python bhbot.py selftest  to check
+  (a box around the text "TIER 21"). Run  python bhbot.py selftest  to check
   the templates.
 
 ------------------------------------------------------------------------------
@@ -172,3 +208,5 @@ YOU NEED
   Unofficial community tool. Automating a game may be against its rules; use
   it at your own risk. Credit for the original bot and its ideas: 9-9-9-9
   (https://github.com/9-9-9-9/Bit-Heroes-bot).
+
+Did you find this useful? - Let me know - Star it.
