@@ -1,15 +1,5 @@
 """
-BH Bot Controller - a small GUI wrapper for the Bit Heroes bot (BitHeroes.jar).
-
-Put this file in the bot folder (next to BitHeroes.jar and the .bat scripts).
-Needs Python 3.8+ with tkinter, and `pip install psutil`.
-
-Features
-  * pick a premade script (.bat) from the bot folder / sample-scripts / anywhere
-  * optional second script that starts automatically when the first finishes
-  * Pause / Resume (freezes the bot process; the game window is left alone)
-  * Force Stop (kills the bot process tree immediately, optionally the game too)
-  * live log with the bot's output, and a box to type input if the bot asks
+BH Bot Controller 
 """
 import json
 import os

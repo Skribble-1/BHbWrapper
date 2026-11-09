@@ -1,11 +1,5 @@
-"""Initial Setup Help window for the BH Bot Controller (Chrome / Kongregate only - the Steam client is not supported).
-
-Walks the user through what the original bot's wiki describes:
-  1. open Kongregate's Bit Heroes page in a normal Chrome and log in
-  2. run the original repo's `prepare-mini-chrome-client.txt` in the Chrome dev console (F12 -> Console)
-  3. copy its output into user-config.properties, overriding the matching keys
-  4. create the game page files (this bot does it itself - the original client.bat needs Java and is optional)
-
+"""
+Initial Setup Help window for the BH Bot Controller (Chrome / Kongregate only - the Steam client is not supported).
 The parsing / file-merging functions have no GUI dependency so they can be tested on their own.
 """
 import os
