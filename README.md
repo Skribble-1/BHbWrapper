@@ -1,23 +1,6 @@
-## THIS PROJECT IS NOT MAINTAINED.
-##### The following are the opinions of maintainer @daredoes
-###### This application is both simple and complex. At this point, I think an AI guided by the correct person could maybe figure it out.
-###### Windows support is much better than linux support. The mini client is the most optimal choice. 
-###### This runs best when utilized in a VM and run completely in isolation. When I was running this 247, I had access to the VM with a VNC, and setup some scripting for screenshots on a dashboard along with some basic controls to make choices, or fix bug states.
-###### File an issue if you want something, tag an issue if you want my attention. Be kind to each other.
-###### Pay attention to your friends and family. How I played this game wasn't healthy, so I upgraded the bot and used that. That wasn't really healthy either. I don't do this anymore, still have my NFTs though.
-
-## Welcome Bit Verse 
-### and new BH update at Nov 16th 2022 & Nov 28th 2022
-### Remaining features need to be updated
-- [ ] Idol Dimension (Expedition)
-- [ ] Hallowed Dimension (Expedition)
-- [ ] Jammie Dimension (Expedition)
-- [ ] Battle Bards (Expedition)
-- [x] Inferno Dimension (Expedition)
-## To the folks who are using this bot but not giving this repository a Star: **Fvck U! from the 8 pixels world to the 4D reality!**
-
-___
-**Upgrade notes:** copy configuration files `user-config.properties` and `readonly.*.user-config.properties` from previous bot version's directory _(if you update the bot via auto-update method then no need to do this)_
+## THE ORIGINAL 9-9-9-9 BIT HERO BOT IS NO LONGER MAINTAINED.
+## THIS README IS THAT LEGACY README KEPT FOR HISTORICAL PURPOSES.
+## FOR ANYTHING PERTAINING TO THE PYTHON WRAPPER, SEE THE README IN THE BHBWRAPPER FOLDER.
 ___
 ## Bit Heroes bot
 ##### on Linux / Windows
