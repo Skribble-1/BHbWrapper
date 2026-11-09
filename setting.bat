@@ -1,1 +1,0 @@
-call _.bat setting
