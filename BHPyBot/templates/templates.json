@@ -1,0 +1,1158 @@
+{
+ "boss.brimstone": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "fc2e31",
+  "kind": "ink"
+ },
+ "boss.exterminytion": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "ff25ec",
+  "kind": "ink"
+ },
+ "boss.gallus": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "ff25ec",
+  "kind": "ink"
+ },
+ "boss.goodall": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "ff25ec",
+  "kind": "ink"
+ },
+ "boss.ignited": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "ff25ec",
+  "kind": "ink"
+ },
+ "boss.melvin": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "bcfd4d",
+  "kind": "ink"
+ },
+ "boss.netherworld": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "7b06ff",
+  "kind": "ink"
+ },
+ "boss.orlag": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "ffff00",
+  "kind": "ink"
+ },
+ "boss.titans": {
+  "at": [
+   188,
+   353
+  ],
+  "ink": "45fef0",
+  "kind": "ink"
+ },
+ "bounty.loot": {
+  "at": [
+   497,
+   242
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "character.confirm": {
+  "at": [
+   350,
+   425
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "character.heroes": {
+  "at": [
+   280,
+   50
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "character.loading": {
+  "at": [
+   325,
+   175
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "character.select": {
+  "at": [
+   80,
+   400
+  ],
+  "ink": "000000",
+  "kind": "ink"
+ },
+ "characters.heroes": {
+  "kind": "ink"
+ },
+ "daily.claim": {
+  "at": [
+   360,
+   444
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.bStar": {
+  "ink": "000000",
+  "kind": "ink"
+ },
+ "dungeons.boss": {
+  "ink": "6066ad",
+  "kind": "ink"
+ },
+ "dungeons.collect": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.energy": {
+  "at": [
+   275,
+   425
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.enter": {
+  "at": [
+   415,
+   433
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.hard": {
+  "at": [
+   327,
+   223
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.heroic": {
+  "at": [
+   520,
+   223
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.heroic-energy": {
+  "at": [
+   550,
+   150
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.level": {
+  "at": [
+   400,
+   260
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.normal": {
+  "at": [
+   135,
+   223
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.not-enough-energy": {
+  "at": [
+   279,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.rerun": {
+  "at": [
+   309,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "dungeons.star": {
+  "at": [
+   400,
+   260
+  ],
+  "ink": "000000",
+  "kind": "ink"
+ },
+ "dungeons.zones": {
+  "at": [
+   104,
+   62
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.battle-bards": {
+  "at": [
+   251,
+   57
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.enter": {
+  "at": [
+   362,
+   452
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.hallowed-dimension": {
+  "at": [
+   208,
+   58
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.idol-dimension": {
+  "kind": "ink"
+ },
+ "expedition.idol-dimension2": {
+  "at": [
+   242,
+   57
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.inferno-dimension": {
+  "at": [
+   207,
+   57
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.jammie-dimension": {
+  "at": [
+   218,
+   57
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.play": {
+  "at": [
+   521,
+   269
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.town": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "fishing.bait": {
+  "at": [
+   755,
+   400
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "fishing.cast": {
+  "at": [
+   370,
+   464
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "fishing.catch": {
+  "at": [
+   362,
+   464
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "fishing.fishing": {
+  "at": [
+   356,
+   13
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "fishing.menu-play": {
+  "at": [
+   288,
+   306
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "fishing.start": {
+  "at": [
+   362,
+   464
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "gauntlet.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "gauntlet.play": {
+  "at": [
+   520,
+   271
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "gauntlet.town": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.are-you-still-there": {
+  "at": [
+   314,
+   242
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.are-you-sure-want-to-exit": {
+  "at": [
+   289,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.auto-green": {
+  "at": [
+   777,
+   214
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.auto-red": {
+  "at": [
+   777,
+   214
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.close-chatbox": {
+  "at": [
+   598,
+   98
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.confirm-quit-battle": {
+  "at": [
+   288,
+   232
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.confirm-start-not-full-team": {
+  "at": [
+   279,
+   221
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.dailyRewards": {
+  "at": [
+   280,
+   50
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.familiars-title": {
+  "at": [
+   312,
+   70
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.fishing-ranks": {
+  "at": [
+   272,
+   52
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.items-popup": {
+  "at": [
+   340,
+   128
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.leave-this-dungeon": {
+  "at": [
+   289,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.maintenance": {
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.news": {
+  "at": [
+   356,
+   77
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.persuade": {
+  "at": [
+   139,
+   329
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.persuade-bribe": {
+  "at": [
+   567,
+   329
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.radio-button": {
+  "ink": "000000",
+  "kind": "mask"
+ },
+ "globally.reconnect": {
+  "at": [
+   336,
+   352
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "globally.send-message": {
+  "at": [
+   507,
+   367
+  ],
+  "ink": "cedeb5",
+  "kind": "ink"
+ },
+ "globally.talkRightArrow": {
+  "at": [
+   718,
+   287
+  ],
+  "ink": "000000",
+  "kind": "mask"
+ },
+ "gvg.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "gvg.fight": {
+  "at": [
+   575,
+   198
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "gvg.play": {
+  "at": [
+   521,
+   272
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "gvg.town": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "invasion.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "invasion.not-enough-badges": {
+  "at": [
+   279,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "invasion.play": {
+  "at": [
+   520,
+   270
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "invasion.title": {
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "invasion.town": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "persuade.gobby": {
+  "at": [
+   200,
+   78
+  ],
+  "ink": "ffff00",
+  "kind": "ink"
+ },
+ "persuade.grimz": {
+  "at": [
+   202,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "persuade.kaleido": {
+  "at": [
+   189,
+   78
+  ],
+  "ink": "ffff00",
+  "kind": "ink"
+ },
+ "persuade.moghur": {
+  "at": [
+   191,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "persuade.oevor": {
+  "at": [
+   200,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "persuade.quirrel": {
+  "at": [
+   189,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "persuade.ragnar": {
+  "at": [
+   192,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "persuade.rugumz": {
+  "at": [
+   190,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "persuade.violace": {
+  "at": [
+   189,
+   78
+  ],
+  "ink": "ff807d",
+  "kind": "ink"
+ },
+ "place.bait": {
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "place.expedition": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   640,
+   190,
+   800,
+   480
+  ]
+ },
+ "place.gauntlet": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   640,
+   190,
+   800,
+   480
+  ]
+ },
+ "place.gvg": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   640,
+   190,
+   800,
+   480
+  ]
+ },
+ "place.invasion": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   640,
+   190,
+   800,
+   480
+  ]
+ },
+ "place.pvp": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   0,
+   50,
+   110,
+   340
+  ]
+ },
+ "place.quest": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   0,
+   50,
+   110,
+   340
+  ]
+ },
+ "place.raid": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   0,
+   50,
+   110,
+   340
+  ]
+ },
+ "place.trials": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   640,
+   190,
+   800,
+   480
+  ]
+ },
+ "place.world-boss": {
+  "ink": "ffffff",
+  "kind": "ink",
+  "region": [
+   0,
+   50,
+   110,
+   340
+  ]
+ },
+ "pvp-arena.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "pvp-arena.fight": {
+  "at": [
+   575,
+   198
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "pvp-arena.not-enough-ticket": {
+  "at": [
+   276,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "pvp-arena.play": {
+  "at": [
+   520,
+   266
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "pvp-arena.town-defeat": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "pvp-arena.town-win": {
+  "at": [
+   462,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.hard": {
+  "at": [
+   338,
+   222
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.heroic": {
+  "at": [
+   528,
+   222
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.normal": {
+  "at": [
+   160,
+   222
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.not-enough-shards": {
+  "at": [
+   279,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.raid": {
+  "at": [
+   365,
+   104
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.summon": {
+  "at": [
+   488,
+   364
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "raid.town": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "resume.text": {
+  "at": [
+   313,
+   286
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "resume.yes": {
+  "at": [
+   302,
+   344
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "tier.11": {
+  "at": [
+   338,
+   204
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "tier.12": {
+  "at": [
+   338,
+   324
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "tier.13": {
+  "at": [
+   338,
+   264
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "tier.14": {
+  "at": [
+   338,
+   204
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "tier.15": {
+  "at": [
+   338,
+   144
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "trials.accept": {
+  "at": [
+   474,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "trials.difficulty-title": {
+  "at": [
+   315,
+   74
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "trials.not-enough-tokens": {
+  "at": [
+   279,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "trials.play": {
+  "at": [
+   517,
+   271
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "trials.tier-word": {
+  "at": [
+   351,
+   161
+  ],
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.1": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.10": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.11": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.12": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.13": {
+  "at": [
+   351,
+   401
+  ],
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.14": {
+  "at": [
+   351,
+   281
+  ],
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.15": {
+  "at": [
+   351,
+   161
+  ],
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.2": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.3": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.4": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.5": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.6": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.7": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.8": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.tier.9": {
+  "ink": "cccccc",
+  "kind": "ink"
+ },
+ "trials.town": {
+  "at": [
+   387,
+   468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "wbsum.tier.12": {
+  "at": [
+   336,
+   205
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.invite": {
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.lobby-ready": {
+  "at": [
+   338,
+   458
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.lobby-unready": {
+  "at": [
+   326,
+   459
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.not-enough-xeals": {
+  "at": [
+   285,
+   231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.ready": {
+  "at": [
+   342,
+   460
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.regroup": {
+  "at": [
+   293,
+   467
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.start-boss": {
+  "at": [
+   342,
+   460
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.summon-boss": {
+  "at": [
+   495,
+   368
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.summon-party": {
+  "at": [
+   452,
+   451
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.summon-tier-diff": {
+  "at": [
+   432,
+   394
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.unready": {
+  "at": [
+   332,
+   462
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.world-boss": {
+  "at": [
+   295,
+   104
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ }
+}
