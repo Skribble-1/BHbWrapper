@@ -1,11 +1,11 @@
 @echo off
-:: Launches the BH Bot Controller (BHbWrapper\bh_gui.py).
+:: Launches the BH Bot Controller (BHPyBot\bh_gui.py).
 :: First it makes sure everything needed is installed:
 ::   1. Python 3 (installed with winget if missing)
 ::   2. the Python packages: opencv-python, numpy, psutil (installed with pip if missing)
 ::   3. tkinter (comes with Python from python.org) and Google Chrome (only a warning if Chrome is missing)
 setlocal EnableExtensions
-cd /d "%~dp0BHbWrapper" || (echo Cannot find the BHbWrapper folder next to this file. & pause & exit /b 1)
+cd /d "%~dp0BHPyBot" || (echo Cannot find the BHPyBot folder next to this file. & pause & exit /b 1)
 
 call :findpython
 if defined PY goto :havepython
@@ -27,7 +27,7 @@ if not defined PY call :trypath "%LOCALAPPDATA%\Programs\Python\Python312"
 if not defined PY call :trypath "%ProgramFiles%\Python312"
 if not defined PY (
     echo.
-    echo Python was installed but this window cannot see it yet. Close this window and run start_gui.bat again.
+    echo Python was installed but this window cannot see it yet. Close this window and run ~start_gui.bat again.
     pause
     exit /b 1
 )
@@ -43,7 +43,7 @@ call :need psutil psutil
 if defined FAILED (
     echo.
     echo Some packages could not be installed: %FAILED%
-    echo Check your internet connection, then run start_gui.bat again.
+    echo Check your internet connection, then run ~start_gui.bat again.
     pause
     exit /b 1
 )
