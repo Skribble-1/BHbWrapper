@@ -13,9 +13,40 @@ from pathlib import Path
 
 import psutil
 
+
+class Tip:
+    """Small hover note: Tip(widget, "text"). Shows after a short pause, hides when the mouse leaves."""
+
+    def __init__(self, widget, text):
+        self.widget, self.text, self.win, self.job = widget, text, None, None
+        widget.bind("<Enter>", self._later, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+        widget.bind("<ButtonPress>", self._hide, add="+")
+
+    def _later(self, _e=None):
+        self._hide()
+        self.job = self.widget.after(500, self._show)
+
+    def _show(self):
+        import tkinter as tk                      # imported here: this file only loads tkinter inside main()
+        x, y = self.widget.winfo_rootx() + 12, self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        self.win = tk.Toplevel(self.widget)
+        self.win.wm_overrideredirect(True)
+        self.win.wm_geometry("+%d+%d" % (x, y))
+        tk.Label(self.win, text=self.text, justify="left", wraplength=420, background="#ffffe0", relief="solid",
+                 borderwidth=1, padx=6, pady=4).pack()
+
+    def _hide(self, _e=None):
+        if self.job:
+            self.widget.after_cancel(self.job)
+            self.job = None
+        if self.win:
+            self.win.destroy()
+            self.win = None
+
 IS_WIN = os.name == "nt"
-APP_DIR = Path(__file__).resolve().parent          # the BHbWrapper folder
-DEFAULT_BOT_DIR = APP_DIR.parent if APP_DIR.name.lower() == "bhbwrapper" else APP_DIR   # the original bot's folder (BitHeroes.jar)
+APP_DIR = Path(__file__).resolve().parent          # the BHPyBot folder
+DEFAULT_BOT_DIR = APP_DIR.parent if APP_DIR.name.lower() in ("bhpybot", "bhbwrapper") else APP_DIR   # the main folder (holds ~start_gui.bat and your account files)
 SETTINGS_FILE = APP_DIR / "bh_gui_settings.json"
 OVERRIDES_FILE = APP_DIR / "overrides.json"        # read by bhbot.py (live); written by the override buttons below
 
@@ -345,14 +376,16 @@ def save_settings(data):
 
 def discover_scripts(bot_dir, extras):
     found = {}
-    for folder in (APP_DIR, bot_dir, bot_dir / "sample-scripts"):
+    for folder in (APP_DIR / "Scripts", APP_DIR, bot_dir):        # BHPyBot/Scripts first; your own scripts may also sit in BHPyBot or the main folder
         if folder.is_dir():
             for f in sorted(folder.glob("*" + SCRIPT_EXT)):
                 if f.stem in HIDDEN_SCRIPTS or f.stem.endswith(".bot") or f.stem.lstrip("~") == "start_gui":
                     continue
-                label = f.name if folder in (bot_dir, APP_DIR) else "sample-scripts/" + f.name
-                if folder == APP_DIR and APP_DIR != bot_dir:
-                    label = "BHbWrapper/" + f.name
+                label = f.name
+                if folder == APP_DIR / "Scripts":
+                    label = APP_DIR.name + "/Scripts/" + f.name
+                elif folder == APP_DIR and APP_DIR != bot_dir:
+                    label = APP_DIR.name + "/" + f.name
                 if label in found:
                     continue
                 found[label] = f
@@ -374,9 +407,9 @@ def run_gui():
     root.withdraw()
     settings = load_settings()
     bot_dir = Path(settings.get("bot_dir", DEFAULT_BOT_DIR))
-    # the bot folder is the one holding the BHbWrapper folder (the Java BitHeroes.jar is not needed); otherwise ask
-    while not ((bot_dir / "BitHeroes.jar").is_file() or (APP_DIR.name.lower() == "bhbwrapper" and bot_dir == APP_DIR.parent)):
-        picked = filedialog.askdirectory(title="Select the bot folder (the one containing the BHbWrapper folder)")
+    # the main folder is the one that holds the BHPyBot folder (this script's folder); if the saved one is wrong, ask
+    while not (bot_dir == APP_DIR or (bot_dir / APP_DIR.name).is_dir()):
+        picked = filedialog.askdirectory(title="Select the main folder (the one that contains the %s folder)" % APP_DIR.name)
         if not picked:
             root.destroy()
             return
@@ -398,6 +431,7 @@ def run_gui():
     esc_count = tk.StringVar(value=str(settings.get("esc_count", 4 if IS_WIN else 0)))
     compact = tk.BooleanVar(value=bool(settings.get("compact_log", False)))
     clean_on = tk.BooleanVar(value=bool(settings.get("clean_unknown", True)))
+    alt_var = tk.BooleanVar(value=bool(settings.get("alternate_chars", False)))
     clean_days = tk.StringVar(value=str(settings.get("clean_unknown_days", 14)))
 
     frm = ttk.Frame(root, padding=10)
@@ -435,32 +469,51 @@ def run_gui():
 
     btns = ttk.Frame(frm)
     btns.grid(row=3, column=0, columnspan=4, sticky="ew")
-    b_start = ttk.Button(btns, text="Start", command=lambda: start())
-    b_pause = ttk.Button(btns, text="Pause", command=lambda: toggle_pause(), state="disabled")
-    b_stop = ttk.Button(btns, text="Force Stop", command=lambda: force_stop(), state="disabled")
+    alt_row = ttk.Frame(btns)                      # row 0 (level with Quest...Trials): the character switch
+    alt_row.grid(row=0, column=0, sticky="w", pady=1)
+    lrow = ttk.Frame(btns)                         # row 1 (level with Gauntlet...Invasion): Start, Resume, Force Stop, Setup Help
+    lrow.grid(row=1, column=0, sticky="w", pady=1)
+    btns.columnconfigure(7, weight=1)
+    b_start = ttk.Button(lrow, text="Start", command=lambda: start())
+    b_pause = ttk.Button(lrow, text="Pause", command=lambda: toggle_pause(), state="disabled")
+    b_stop = ttk.Button(lrow, text="Force Stop", command=lambda: force_stop(), state="disabled")
     for b in (b_start, b_pause, b_stop):
         b.pack(side="left", padx=(0, 6))
-    ttk.Label(btns, textvariable=status, font=("TkDefaultFont", 10, "bold")).pack(side="right")
-
+    ttk.Label(btns, textvariable=status, font=("TkDefaultFont", 10, "bold")).grid(row=0, column=7, rowspan=2, sticky="e")
+    ck_alt = ttk.Checkbutton(alt_row, text="Alternate characters...", variable=alt_var, command=lambda: save_speed())
+    ck_alt.pack(side="left")
+    Tip(ck_alt, "ALTERNATE CHARACTERS (default off)\n"
+                "Designed for: accounts with a second hero (unlocked at higher levels). Both heroes get farmed in turn.\n"
+                "Used in: bhbot.py switch_character() - opens YOUR HEROES (the small skull above your player badge), picks the hero "
+                "that is NOT active, presses CONFIRM and waits 60 s for the game to reload.\n"
+                "It switches in two cases: (1) when EVERY task of the current hero is waiting for tickets/energy and the other hero "
+                "still has something to do, then the AFK chain starts over; (2) just before a 'Full restart every...': the bot finishes "
+                "its current run, switches hero, waits 60 s so the server remembers it, then the game is restarted and loads that hero.\n"
+                "Only 2 heroes are supported. If the YOUR HEROES page does not open, the bot says so in the log and keeps going.")
     # ---- settings overrides (written to overrides.json; the running bot picks changes up by itself) ---- #
     def open_account_setup():
         import bh_setup
         bh_setup.open_setup(root, bot_dir)
 
-    ttk.Button(btns, text="Initial Setup Help", command=open_account_setup).pack(side="left", padx=(12, 0))
+    ttk.Button(lrow, text="Initial Setup Help", command=open_account_setup).pack(side="left", padx=(6, 0))
     ov_buttons = {}
-    ttk.Separator(btns, orient="vertical").pack(side="left", fill="y", padx=(4, 10))
-    ovf = ttk.Frame(btns)
-    ovf.pack(side="left")
+    ttk.Separator(btns, orient="vertical").grid(row=0, column=1, rowspan=2, sticky="ns", padx=(10, 10))
     for i, (title, key) in enumerate((("Quest", "quest"), ("PVP", "pvp"), ("World Boss", "boss"), ("Raid", "raid"), ("Trials", "trials"),
                                       ("Gauntlet", "gauntlet"), ("GVG", "gvg"), ("Expedition", "expedition"), ("Invasion", "invasion"))):
-        ov_buttons[key] = (title, ttk.Button(ovf, text=title, command=lambda k=key: open_override(k)))
-        ov_buttons[key][1].grid(row=i // 5, column=i % 5, padx=(0, 4), pady=1, sticky="ew")
+        ov_buttons[key] = (title, ttk.Button(btns, text=title, command=lambda k=key: open_override(k)))
+        ov_buttons[key][1].grid(row=i // 5, column=2 + i % 5, padx=(0, 4), pady=1, sticky="ew")
 
     cl = ttk.Frame(frm)
     cl.grid(row=10, column=0, columnspan=4, sticky="e", pady=(4, 0))
-    ttk.Checkbutton(cl, text="Clear BHbWrapper/out/unknown older than", variable=clean_on, command=lambda: save_clean()).pack(side="left")
-    ttk.Spinbox(cl, from_=1, to=365, width=4, textvariable=clean_days, command=lambda: save_clean()).pack(side="left", padx=4)
+    ck_cl = ttk.Checkbutton(cl, text="Clear BHPyBot/out/unknown older than", variable=clean_on, command=lambda: save_clean())
+    ck_cl.pack(side="left")
+    sp_cl = ttk.Spinbox(cl, from_=1, to=365, width=4, textvariable=clean_days, command=lambda: save_clean())
+    sp_cl.pack(side="left", padx=4)
+    for w in (ck_cl, sp_cl):
+        Tip(w, "CLEAR OLD SCREENSHOTS (default on, 14 days)\n"
+               "Designed for: stopping BHPyBot/out/unknown from filling the disk with 'unrecognised screen' pictures.\n"
+               "Used in: bh_gui.py clean_old_files(), run once each time you click Start. Only files in out/unknown older than "
+               "this many days are deleted.")
     ttk.Label(cl, text="days. Clears on Start").pack(side="left")
 
     def clean_n():
@@ -489,37 +542,86 @@ def run_gui():
 
     speed = ttk.Frame(frm)
     speed.grid(row=8, column=0, columnspan=4, sticky="ew", pady=(6, 0))
-    sl, sr = ttk.Frame(speed), ttk.Frame(speed)
-    sl.pack(side="left")
-    sr.pack(side="right")
-    ttk.Label(sl, text="Look at the game every").pack(side="left")
-    tick_var = tk.StringVar(value=str(settings.get("tick", 1.0)))
-    ttk.Spinbox(sl, from_=0.2, to=10, increment=0.2, width=5, textvariable=tick_var, command=lambda: save_speed()).pack(side="left", padx=4)
+    speed.columnconfigure((0, 1, 2), weight=1, uniform="speed")
+    sl, sm, sr = ttk.Frame(speed), ttk.Frame(speed), ttk.Frame(speed)
+    sl.grid(row=0, column=0, sticky="w")
+    sm.grid(row=0, column=1)
+    sr.grid(row=0, column=2, sticky="e")
+    lbl = ttk.Label(sl, text="Base Check Interval")
+    lbl.pack(side="left")
+    base_var = tk.StringVar(value=str(settings.get("base_tick", 15)))
+    sp_base = ttk.Spinbox(sl, from_=1, to=300, increment=1, width=5, textvariable=base_var, command=lambda: save_speed())
+    sp_base.pack(side="left", padx=4)
     ttk.Label(sl, text="s").pack(side="left")
-    ttk.Label(sr, text="Repeat 'waiting' messages every").pack(side="left")
+    lbl2 = ttk.Label(sm, text="Look at the game every")
+    lbl2.pack(side="left")
+    tick_var = tk.StringVar(value=str(settings.get("tick", 1.0)))
+    sp_tick = ttk.Spinbox(sm, from_=0.2, to=10, increment=0.2, width=5, textvariable=tick_var, command=lambda: save_speed())
+    sp_tick.pack(side="left", padx=4)
+    ttk.Label(sm, text="s").pack(side="left")
+    lbl3 = ttk.Label(sr, text="Repeat 'waiting' messages every")
+    lbl3.pack(side="left")
     wait_var = tk.StringVar(value=str(settings.get("wait_every", 60)))
-    ttk.Spinbox(sr, from_=5, to=3600, increment=10, width=5, textvariable=wait_var, command=lambda: save_speed()).pack(side="left", padx=4)
+    sp_wait = ttk.Spinbox(sr, from_=5, to=3600, increment=10, width=5, textvariable=wait_var, command=lambda: save_speed())
+    sp_wait.pack(side="left", padx=4)
     ttk.Label(sr, text="s").pack(side="left")
+    for w in (lbl, sp_base):
+        Tip(w, "BASE CHECK INTERVAL (default 15 s)\n"
+               "Designed for: saving CPU/heat while the bot has nothing to do. It is the extra pause between looks when EVERY task "
+               "is waiting (out of tickets/energy, cooldowns, 'Waiting - ...' in the log).\n"
+               "Used in: bhbot.py, the AFK main loop (the 'Waiting' branch).\n"
+               "Higher = cooler PC, but a popup that appears while waiting is noticed later. Range 1-300 s.")
+    for w in (lbl2, sp_tick):
+        Tip(w, "LOOK AT THE GAME EVERY (default 1.0 s)\n"
+               "Designed for: how fast the bot reacts while something is going on (menus, battles, popups, loading). "
+               "Each look = one screenshot + matching.\n"
+               "Used in: bhbot.py, the AFK main loop (pause at the top of every cycle).\n"
+               "Lower = quicker reactions but more CPU and heat; 2-3 s is fine for most AFK use. Range 0.2-10 s.")
+    for w in (lbl3, sp_wait):
+        Tip(w, "REPEAT 'WAITING' MESSAGES EVERY (default 60 s)\n"
+               "Designed for: keeping the log readable. The same 'waiting / screen is changing' line is printed at most this often.\n"
+               "Used in: bhbot.py say() - it only changes what is printed, never what the bot does.")
 
     rs = ttk.Frame(frm)
     rs.grid(row=9, column=0, columnspan=4, sticky="ew", pady=(4, 0))
     rl, rr = ttk.Frame(rs), ttk.Frame(rs)
     rl.pack(side="left")
     rr.pack(side="right")
-    ttk.Label(rl, text="Full restart every").pack(side="left")
+    l_rs = ttk.Label(rl, text="Full restart every")
+    l_rs.pack(side="left")
     restart_var = tk.StringVar(value=str(settings.get("restart_min", 0)))
-    ttk.Spinbox(rl, from_=0, to=1440, increment=5, width=5, textvariable=restart_var).pack(side="left", padx=4)
+    sp_rs = ttk.Spinbox(rl, from_=0, to=1440, increment=5, width=5, textvariable=restart_var)
+    sp_rs.pack(side="left", padx=4)
     ttk.Label(rl, text="min (0 = never)").pack(side="left")
-    ttk.Label(rr, text="If the screen is stuck (3 identical screenshots in out/unknown):").pack(side="left")
+    l_st = ttk.Label(rr, text="If the screen is stuck (3 identical screenshots in out/unknown):")
+    l_st.pack(side="left")
     STUCK_CHOICES = {"Do nothing": "none", "Restart game + script(s)": "restart", "Shut down game": "shutdown"}
     stuck_var = tk.StringVar(value=next((k for k, v in STUCK_CHOICES.items() if v == settings.get("stuck_action", "none")), "Do nothing"))
-    ttk.Combobox(rr, textvariable=stuck_var, values=list(STUCK_CHOICES), state="readonly", width=24).pack(side="left", padx=4)
+    cb_st = ttk.Combobox(rr, textvariable=stuck_var, values=list(STUCK_CHOICES), state="readonly", width=24)
+    cb_st.pack(side="left", padx=4)
+    for w in (l_rs, sp_rs):
+        Tip(w, "FULL RESTART EVERY (default 0 = never)\n"
+               "Designed for: long unattended sessions - Chrome and the game slowly use more memory, a fresh start clears it.\n"
+               "Used in: this window (bh_gui.py, the once-a-second timer). After N minutes it closes the game Chrome and starts "
+               "the same script(s) again. Remembered between runs.")
+    for w in (l_st, cb_st):
+        Tip(w, "IF THE SCREEN IS STUCK (default: do nothing)\n"
+               "Designed for: a screen the bot does not know and cannot get out of.\n"
+               "Used in: bhbot.py note_unknown() counts consecutive 'unknown' screenshots that look the same; at 3 it ends "
+               "with exit code 7 (restart) or 8 (shut down). bh_gui.py then restarts the game + script(s), or closes the game.")
 
     mt = ttk.Frame(frm)
     mt.grid(row=10, column=0, columnspan=4, sticky="w", pady=(4, 0))
-    ttk.Label(mt, text="If the game is down for maintenance: close it and start again after").pack(side="left")
+    l_mt = ttk.Label(mt, text="If the game is down for maintenance: close it and start again after")
+    l_mt.pack(side="left")
     maint_var = tk.StringVar(value=str(settings.get("maintenance_min", 60)))
-    ttk.Spinbox(mt, from_=1, to=720, increment=5, width=5, textvariable=maint_var).pack(side="left", padx=4)
+    sp_mt = ttk.Spinbox(mt, from_=1, to=720, increment=5, width=5, textvariable=maint_var)
+    sp_mt.pack(side="left", padx=4)
+    for w in (l_mt, sp_mt):
+        Tip(w, "MAINTENANCE WAIT (default 60 min)\n"
+               "Designed for: server maintenance - no point leaving the game open and clicking.\n"
+               "Used in: bhbot.py maintenance() spots the maintenance message and exits with code 9; bh_gui.py then closes the "
+               "game and starts the script(s) again after this many minutes.")
     ttk.Label(mt, text="min").pack(side="left")
 
     def maint_minutes():
@@ -575,14 +677,21 @@ def run_gui():
         except ValueError:
             rmin = 0
         action = STUCK_CHOICES.get(stuck_var.get(), "none")
-        settings.update(tick=tick, wait_every=every, restart_min=rmin, stuck_action=action)
+        try:
+            base = min(max(float(base_var.get()), 1.0), 300.0)
+        except ValueError:
+            base = 15.0
+        settings.update(tick=tick, base_tick=base, wait_every=every, restart_min=rmin, stuck_action=action, alternate_chars=bool(alt_var.get()))
         save_settings(settings)
         d = load_ov()
-        d["settings"] = {"tick": tick, "wait_every": every, "stuck_action": action}
+        old = d.get("settings") if isinstance(d.get("settings"), dict) else {}
+        d["settings"] = {"tick": tick, "base_tick": base, "wait_every": every, "stuck_action": action, "alternate_chars": bool(alt_var.get())}
+        if old.get("switch_request"):                   # a pending 'switch hero before the restart' request must survive
+            d["settings"]["switch_request"] = old["switch_request"]
         save_ov(d)
 
     stuck_var.trace_add("write", lambda *_: save_speed())
-    for widget_var in (tick_var, wait_var, restart_var):
+    for widget_var in (tick_var, base_var, wait_var, restart_var):
         widget_var.trace_add("write", lambda *_: root.after(800, save_speed)) if hasattr(widget_var, "trace_add") else None
 
     EVENT_ONLY = ("gvg", "expedition")                                    # overrides that hold nothing but 'run it / skip it'
@@ -788,6 +897,12 @@ def run_gui():
         names = sorted(state["scripts"])
         cb1["values"] = names
         cb2["values"] = [NO_SELECTION] + names
+        for key in ("primary", "secondary"):                 # older versions kept the scripts one level up: BHPyBot/AFK.bat -> BHPyBot/Scripts/AFK.bat
+            old = settings.get(key) or ""
+            if old and old not in names:
+                for cand in (APP_DIR.name + "/Scripts/" + old.split("/")[-1],):
+                    if cand in names:
+                        settings[key] = cand
         if primary.get() not in names:
             primary.set(settings.get("primary") if settings.get("primary") in names else (names[0] if names else ""))
         if secondary.get() not in names + [NO_SELECTION]:
@@ -857,6 +972,7 @@ def run_gui():
         settings.update(primary=primary.get(), secondary=secondary.get(), esc_count=esc_times(),
                         only_if_ok=only_if_ok.get(), kill_game=kill_game.get())
         save_settings(settings)
+        save_speed()                                    # make sure overrides.json has every current setting (incl. Alternate characters)
         if clean_on.get():
             try:
                 n, freed = clean_old_files(APP_DIR / "out" / "unknown", clean_n())
@@ -927,6 +1043,7 @@ def run_gui():
     def force_stop():
         run = state["run"]
         state["queue_next"] = None
+        state.pop("switch_wait", None)
         if state.pop("restart_pending", False) or state.pop("maint_until", None):
             banner("STOPPED by user (restart cancelled)")
             status.set("Stopped")
@@ -954,11 +1071,24 @@ def run_gui():
                 elif ev[0] == "done":
                     _, ok, user_stopped = ev
                     last_exit = state["run"].last_exit if state["run"] else None
+                    switching = state.pop("switch_wait", None)
                     state["run"] = None
                     set_buttons(False)
                     why = state.pop("restarting", None)
                     if why:
                         banner("FULL RESTART (%s)" % why)
+                        status.set("Restarting the game and script(s)...")
+                        b_start.configure(state="disabled")
+                        b_stop.configure(state="normal")
+                        state["restart_pending"] = True
+                        kill_chrome()
+                        root.after(5000, begin_again)
+                    elif not user_stopped and last_exit == 10 and switching:
+                        d = load_ov()
+                        if isinstance(d.get("settings"), dict):
+                            d["settings"].pop("switch_request", None)
+                            save_ov(d)
+                        banner("FULL RESTART (the other character is selected)")
                         status.set("Restarting the game and script(s)...")
                         b_start.configure(state="disabled")
                         b_stop.configure(state="normal")
@@ -1027,8 +1157,19 @@ def run_gui():
         except ValueError:
             rmin = 0
         if (rmin > 0 and state["run"] and state["run"].alive and not state.get("restarting") and not state.get("chaining")
-                and time.time() - state.get("cycle_start", time.time()) >= rmin * 60):
-            restart_all("every %d min" % rmin)
+                and not state.get("switch_wait") and time.time() - state.get("cycle_start", time.time()) >= rmin * 60):
+            if alt_var.get():                      # switch hero first: ask the bot, it finishes its run, switches, waits 60 s, then exits
+                d = load_ov()
+                d.setdefault("settings", {})["switch_request"] = time.time()
+                save_ov(d)
+                state["switch_wait"] = time.time()
+                banner("FULL RESTART is due - first switching to the other character (the bot finishes its current run)")
+                status.set("Switching character before the restart...")
+            else:
+                restart_all("every %d min" % rmin)
+        elif state.get("switch_wait") and state["run"] and state["run"].alive and time.time() - state["switch_wait"] > 20 * 60:
+            state.pop("switch_wait", None)         # the bot could not switch in 20 minutes: restart anyway
+            restart_all("every %d min (character switch took too long)" % rmin)
         run = state["run"]
         if run:
             el = int(time.time() - state["started"])

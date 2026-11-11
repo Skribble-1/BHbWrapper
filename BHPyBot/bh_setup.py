@@ -187,7 +187,7 @@ def make_pages(bot_dir):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
     except Exception as e:                                   # e.g. opencv not installed yet
-        return False, ["Could not load the bot (%s). Run start_gui.bat once to install the required packages." % e]
+        return False, ["Could not load the bot (%s). Run ~start_gui.bat once to install the required packages." % e]
     props = mod.load_props(Path(bot_dir) / "user-config.properties")
     accounts = mod.load_accounts(props)
     if not accounts:

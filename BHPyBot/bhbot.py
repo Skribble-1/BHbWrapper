@@ -37,13 +37,15 @@ import zipfile
 from pathlib import Path
 
 import cv2
+cv2.setNumThreads(1)          # tiny images: OpenCV's worker threads only spin up the CPU for nothing
 import math
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent                 # the wrapper folder (BHbWrapper): this script, templates, out, overrides.json
-# The original bot's files (BitHeroes.jar, user-config.properties, readonly.<name>.user-config.properties, bh-client)
-# live one folder up when this script sits in a folder called BHbWrapper; otherwise next to the script.
-BOT_DIR = ROOT.parent if ROOT.name.lower() == "bhbwrapper" else ROOT
+ROOT = Path(__file__).resolve().parent                 # this script's folder (BHPyBot): templates, out, overrides.json, bh-client scripts
+# Your account files (user-config.properties, optional readonly.<name>.user-config.properties), the generated game pages (bh-client)
+# and the bot's Chrome profile live one folder up (the main folder, next to ~start_gui.bat) when this script sits in a folder
+# called BHPyBot (or the old name BHbWrapper); otherwise next to the script.
+BOT_DIR = ROOT.parent if ROOT.name.lower() in ("bhpybot", "bhbwrapper") else ROOT
 TEMPLATE_DIR = ROOT / "templates"
 OUT_DIR = ROOT / "out"
 CLIENT_DIR = BOT_DIR / "bh-client"
@@ -53,6 +55,7 @@ GAME_W, GAME_H = 800, 520
 # exit codes (also printed as "exit code: N" so bh_gui.py can tell success from failure)
 EXIT_OK, EXIT_ERROR, EXIT_STUCK, EXIT_NO_ANCHOR, EXIT_DISCONNECTED, EXIT_DM, EXIT_NO_GAME = 0, 1, 2, 3, 4, 5, 6
 EXIT_RESTART, EXIT_SHUTDOWN = 7, 8
+EXIT_SWITCHED = 10                    # character switched (or not possible) because the GUI asked for it just before a full restart
 EXIT_MAINTENANCE = 9                    # 'Bit Heroes is down for maintenance': the GUI closes the game and starts again later      # 'screen stuck': the GUI restarts / shuts down the game (chosen in the GUI)
 
 
@@ -171,10 +174,14 @@ def write_game_page(account):
     jar = BOT_DIR / "BitHeroes.jar"
     for js in ("sitewide_javascripts.js", "holodeck_javascripts.js"):
         if not (CLIENT_DIR / js).is_file():
-            if not jar.is_file():
-                raise BotExit(EXIT_NO_GAME, "bh-client/%s is missing (and BitHeroes.jar to extract it from)" % js)
-            with zipfile.ZipFile(jar) as z:
-                (CLIENT_DIR / js).write_bytes(z.read("game-scripts/" + js))
+            shipped = ROOT / "bh-client" / js                         # the copy that comes with the bot (BHPyBot/bh-client)
+            if shipped.is_file():
+                (CLIENT_DIR / js).write_bytes(shipped.read_bytes())
+            elif jar.is_file():                                       # an old Java bot folder: take it from the jar
+                with zipfile.ZipFile(jar) as z:
+                    (CLIENT_DIR / js).write_bytes(z.read("game-scripts/" + js))
+            else:
+                raise BotExit(EXIT_NO_GAME, "%s is missing: the BHPyBot/bh-client folder must contain it" % js)
     page = CLIENT_DIR / ("index%d.html" % account["index"])
     page.write_text(GAME_HTML.replace("__ID__", json.dumps(int(account["id"])))
                     .replace("__NAME__", json.dumps(account["name"]))
@@ -387,8 +394,8 @@ class Frame:
 
     def maps(self, ink):
         if ink not in self._ink:
-            self._ink[ink] = ink_map(self.img, ink).astype(np.float32)
-            self._exact[ink] = exact_map(self.img, ink).astype(np.float32)
+            self._ink[ink] = ink_map(self.img, ink)             # plain True/False maps: cheap to make and to slice
+            self._exact[ink] = exact_map(self.img, ink)
         return self._ink[ink], self._exact[ink]
 
     def pixel(self, x, y):
@@ -416,6 +423,10 @@ class Template:
             self.origin = (int(x0), int(y0))
         self.ink_t = ink_px.astype(np.float32)
         self.border_t = border.astype(np.float32)
+        self.ink_b, self.border_b = ink_px.astype(bool), border.astype(bool)
+        iy, ix = np.nonzero(self.ink_b)                  # ~12 text pixels spread over the whole label: a quick pre-filter
+        pick = np.unique(np.linspace(0, len(iy) - 1, min(12, len(iy))).astype(int))
+        self.samples = [(int(iy[i]), int(ix[i])) for i in pick]
         self.n_ink, self.n_border = int(ink_px.sum()), int(border.sum())
         self.h, self.w = ink_px.shape
 
@@ -437,11 +448,26 @@ class Template:
         if x1 - x0 < self.w or y1 - y0 < self.h:
             return []
         ink_m, exact_m = frame.maps(self.ink)
-        good = cv2.matchTemplate(ink_m[y0:y1, x0:x1], self.ink_t, cv2.TM_CCORR) >= self.n_ink - 0.5
-        if self.n_border:
-            good &= cv2.matchTemplate(exact_m[y0:y1, x0:x1], self.border_t, cv2.TM_CCORR) <= 0.5
-        ys, xs = np.nonzero(good)
-        return sorted((int(x) + x0, int(y) + y0) for y, x in zip(ys, xs))
+        sub = ink_m[y0:y1, x0:x1]
+        H, W = sub.shape[0] - self.h + 1, sub.shape[1] - self.w + 1
+        cand = np.ones((H, W), bool)                     # 1) positions where a dozen sample text pixels are all text-coloured
+        for oy, ox in self.samples:
+            cand &= sub[oy:oy + H, ox:ox + W]
+            if not cand.any():
+                return []
+        cy, cx = np.nonzero(cand)
+        if len(cy) > 3000:                               # very common colour: the full comparison is cheaper
+            good = cv2.matchTemplate(sub.astype(np.float32), self.ink_t, cv2.TM_CCORR) >= self.n_ink - 0.5
+            if self.n_border:
+                good &= cv2.matchTemplate(exact_m[y0:y1, x0:x1].astype(np.float32), self.border_t, cv2.TM_CCORR) <= 0.5
+            ys, xs = np.nonzero(good)
+            return sorted((int(x) + x0, int(y) + y0) for y, x in zip(ys, xs))
+        ex = exact_m[y0:y1, x0:x1]
+        hits = []
+        for y, x in zip(cy.tolist(), cx.tolist()):      # 2) full check of the few candidates
+            if sub[y:y + self.h, x:x + self.w][self.ink_b].all() and not (self.n_border and ex[y:y + self.h, x:x + self.w][self.border_b].any()):
+                hits.append((x + x0, y + y0))
+        return sorted(hits)
 
     def find(self, frame, margin=DEFAULT_MARGIN):
         hits = self.find_all(frame, margin)
@@ -1031,7 +1057,7 @@ class Fishing(Bot):
 # AFK  (port of AfkApp.java, plus: running commentary, event-proof navigation, give-up rules)
 # =========================================================================== #
 AFK_MARGIN = 80          # buttons inside an activity may be this far from their usual spot
-SLOW_WAIT = 15           # seconds between looks while every task is waiting for tickets/energy
+SLOW_WAIT = 15           # default seconds between looks while every task is waiting for tickets/energy (GUI: "Base Check Interval")
 GROUP_GIE, GROUP_TG = "gvg/invasion/expedition", "trials/gauntlet"   # these share one cooldown (as in the original)
 
 TASKS = {   # chain = buttons to click, in order of priority; done = 'out of tickets' dialog; block = minutes to wait then
@@ -1159,10 +1185,14 @@ def apply_overrides(base, ov):
         try:
             p["tick"] = min(max(float(st.get("tick", 0) or 0), 0.2), 10.0) or None
             p["wait_every"] = min(max(int(st.get("wait_every", 0) or 0), 5), 3600) or None
+            p["base_tick"] = min(max(float(st.get("base_tick", 0) or 0), 1.0), 300.0) or None
             p["stuck_action"] = st.get("stuck_action") if st.get("stuck_action") in ("restart", "shutdown") else "none"
+            p["alternate"] = bool(st.get("alternate_chars", False))
+            p["switch_request"] = float(st.get("switch_request", 0) or 0)
         except (TypeError, ValueError):
             pass
-        notes.append("check every %s s, repeat waiting messages every %s s" % (p.get("tick") or "default", p.get("wait_every") or "default"))
+        notes.append("check every %s s (%s s while every task is waiting), repeat waiting messages every %s s" % (
+            p.get("tick") or "default", p.get("base_tick") or SLOW_WAIT, p.get("wait_every") or "default"))
     d = sec("trials")
     if d:
         p["trials_tier"] = num(d, "tier")
@@ -1231,6 +1261,8 @@ class Afk(Bot):
         self._was_waiting = set()
         self.tasks = [t for t in ORDER if t in wanted and TASKS[t].get("supported", True)]
         self.blocked = {}                 # group -> (until, why)
+        self.cur_char, self.char_blocks = 0, {}          # alternate characters: which hero (0 = the one we started on) and the other's saved pauses
+        self._no_second, self._no_switch_until, self._switch_req_done = False, 0.0, 0.0
         self.idle = self.stuck = self.map_miss = 0
         self.nav_tries, self.quest_fail, self.quest_bad = {}, 0, []
         self.zone_steps, self.zone_trail, self.zone_seen = 0, [], 0.0
@@ -1292,6 +1324,9 @@ class Afk(Bot):
             self.tick = float(self.profile["tick"])
         if self.profile.get("wait_every"):
             self.wait_every = int(self.profile["wait_every"])
+        self.slow_wait = float(self.profile.get("base_tick") or SLOW_WAIT)
+        if first:
+            self._switch_req_done = float(self.profile.get("switch_request") or 0)      # an old request is not a new one
         if notes or not first:
             log("Settings overrides %s: %s" % ("in use" if first else "changed", "; ".join(notes) or "none (profile settings)"))
 
@@ -1342,6 +1377,8 @@ class Afk(Bot):
         if due("talk", 1) and self.activity != "pvp":
             t = self.tpl.get("globally.talkRightArrow")
             pos = None if self.tpl.get("dungeons.zones").find(frame, None) else (t.find(frame, 60) or t.find(frame, None))   # the zone map's yellow arrow looks the same; prefer the arrow at its usual spot (a grey carousel arrow can look alike)
+            if pos and self.difficulty_screen(frame):                     # NORMAL / HARD / HEROIC picker: its '>' arrows and title are not a dialogue
+                pos = None
             plate = self.dialogue_plate(frame) if pos else None           # a name plate (any enemy-tier colour) must be there too
             if pos and plate:
                 box, rgb = plate
@@ -1349,6 +1386,13 @@ class Afk(Bot):
                     self._talk_box, self._talk_since, self._talk_clicks = box, now, 0
                 elif now - self._talk_since >= 1.5:                     # name + arrow have stood still for a moment
                     self._talk_clicks += 1
+                    if self._talk_clicks > 24:                          # a real dialogue ends long before this
+                        log("NPC dialogue: still the same screen after %d clicks - it is not a dialogue -> ESC x2" % (self._talk_clicks - 1))
+                        self.save_frame(frame, "unknown", "dialogue_endless", "clicked a 'dialogue' 24 times and the screen never changed", 600)
+                        self.game.esc(2, gap=1.0)
+                        self._talk_box, self._talk_clicks = None, 0
+                        self._talk_since = now + 20
+                        return True
                     if self._talk_clicks % 3 == 0:
                         self.say("NPC dialogue (name text %s) -> SPACE" % (rgb,), every=10)
                         self.game.press("space")
@@ -1370,6 +1414,17 @@ class Afk(Bot):
             if self.tpl.get("globally.items-popup").find(frame, None):
                 self.say("'Items' popup -> ESC", every=10)
                 self.game.press("escape")
+                return True
+        if due("fishranks", 2):                                 # 'FISHING RANKS' window (the game opens it by itself now and then)
+            if self.tpl.get("globally.fishing-ranks").find(frame):
+                self._ranks_n = getattr(self, "_ranks_n", 0) + 1
+                if self._ranks_n % 2:
+                    self.say("'Fishing Ranks' window -> clicking its red X", every=10)
+                    self.game.click(668, 75)
+                else:
+                    self.say("'Fishing Ranks' window is still open -> ESC", every=10)
+                    self.game.press("escape")
+                time.sleep(1)
                 return True
         if due("fishscene", 3):
             if self.tpl.get("fishing.fishing").find(frame):
@@ -1442,7 +1497,135 @@ class Afk(Bot):
         return False
 
     # ---- one task's screens ------------------------------------------------- #
-    def try_chain(self, task, frame):
+    # ---- second character: main map -> YOUR HEROES -> the other hero -> CONFIRM -------------------------------- #
+    HERO_SKULL_MAP = (92, 415)          # small grey skull above the player badge (only there once a 2nd hero is unlocked)
+    HERO_BADGE, HERO_SKULL_PAGE = (47, 455), (172, 55)       # 2nd way: the badge opens the character page, the skull sits beside the name
+    HERO_BOXES = ((147, 162, 305, 321), (327, 162, 485, 321))    # the left / right portrait on the YOUR HEROES page
+    HERO_LOAD_WAIT = 60                 # seconds for the game to reload and the server to take the new hero
+
+    def hero_active(self, frame):
+        """0 = the left portrait is the active hero, 1 = the right one (the active one has a light glow around its frame)."""
+        rings = []
+        for x0, y0, x1, y1 in self.HERO_BOXES:
+            o, w = 3, 6
+            part = frame.img[y0 - o - w:y1 + o + w, x0 - o - w:x1 + o + w].astype(int).min(axis=2)
+            inner = np.zeros(part.shape, bool)
+            inner[w:-w, w:-w] = True
+            rings.append(part[~inner].mean())
+        if abs(rings[0] - rings[1]) < 12:
+            return None
+        return 0 if rings[0] > rings[1] else 1
+
+    def open_heroes(self):
+        title = self.tpl.get("heroes.title")
+        for route in ("skull", "badge"):
+            if route == "skull":
+                self.game.click(*self.HERO_SKULL_MAP)
+            else:
+                self.game.click(*self.HERO_BADGE)
+                time.sleep(1.5)
+                self.game.click(*self.HERO_SKULL_PAGE)
+            time.sleep(1.5)
+            if title.find(self.game.screenshot()):
+                return True
+            self.game.esc(2, gap=0.8)
+        return False
+
+    def on_map_now(self, frame):
+        return (self.on_main_screen(frame) and time.time() >= self.nav_block_until
+                and not self.tpl.get("globally.auto-green").find(frame, AFK_MARGIN))
+
+    def switch_character(self, why):
+        """Open YOUR HEROES, pick the hero that is NOT active, CONFIRM, wait for the reload. True when the other hero is loaded."""
+        log("Alternate characters (%s): opening YOUR HEROES" % why)
+        if not self.open_heroes():
+            log("Alternate characters: the YOUR HEROES page did not open - is a second character unlocked? Not trying again in this run.")
+            self._no_second = True
+            return False
+        f2 = None
+        for attempt in range(2):
+            f = self.game.screenshot()
+            act = self.hero_active(f)
+            if act is None:
+                break
+            x0, y0, x1, y1 = self.HERO_BOXES[1 - act]
+            log("Alternate characters: the %s hero is active -> choosing the %s one" % (("left", "right")[act], ("left", "right")[1 - act]))
+            self.game.click((x0 + x1) // 2, (y0 + y1) // 2)
+            time.sleep(1.2)
+            f2 = self.game.screenshot()
+            if self.hero_active(f2) == 1 - act:
+                break
+            f2 = None
+        if f2 is None:
+            log("Alternate characters: could not select the other hero -> ESC (will try again in 30 min)")
+            self.save_frame(self.game.screenshot(), "unknown", "heroes_select_failed", "YOUR HEROES: could not tell / select the other hero", 600)
+            self.game.esc(3, gap=0.8)
+            self._no_switch_until = time.time() + 1800
+            return False
+        tc = self.tpl.get("heroes.confirm")
+        pos = tc.find(f2)
+        self.tap(tc, pos) if pos else self.game.click(390, 449)
+        log("Alternate characters: CONFIRM pressed -> waiting %d s for the game to reload with the other hero" % self.HERO_LOAD_WAIT)
+        t0 = time.time()
+        time.sleep(8)
+        while time.time() - t0 < 180:
+            try:
+                fr = self.game.screenshot()
+                if self.resume_dungeon(fr) or self.daily_login(fr):
+                    time.sleep(1)
+                    continue
+                if time.time() - t0 >= self.HERO_LOAD_WAIT and self.on_main_screen(fr):
+                    break
+            except (ConnectionError, OSError, ValueError) as e:        # the page may blink while it reloads
+                log("(waiting for the game to reload: %s)" % e)
+            time.sleep(1)
+        self.cur_char = 1 - self.cur_char
+        self.activity, self.nav_block_until = None, 0.0
+        self.nav_tries, self.quest_fail, self.quest_bad = {}, 0, []
+        self.zone_steps, self.zone_trail, self.next_small = 0, [], {}
+        self.acted()
+        log("Alternate characters: the other hero is loaded -> starting the AFK chain over")
+        self.collect_bounties("start")
+        return True
+
+    def switch_if_exhausted(self, frame):
+        """Every task is waiting: if the other hero still has something to do, switch to it."""
+        if not self.profile.get("alternate") or self.ear or self._no_second or time.time() < self._no_switch_until:
+            return False
+        if not self.on_map_now(frame):
+            return False
+        other, now = self.char_blocks.get(1 - self.cur_char, {}), time.time()
+        if not any(t not in self.disabled and other.get(TASKS[t]["group"], (0, ""))[0] <= now for t in self.tasks):
+            self.say("Alternate characters: the other hero is waiting too - staying here", every=600)
+            return False
+        mine = dict(self.blocked)
+        self.char_blocks[self.cur_char] = mine
+        self.blocked = dict(other)
+        if self.switch_character("every task of this hero is waiting"):
+            return True
+        self.blocked = mine
+        return False
+
+    def difficulty_screen(self, frame):
+        """The dungeon's NORMAL / HARD / HEROIC picker (all three buttons visible)."""
+        return all(self.tpl.get(n).find(frame, AFK_MARGIN) for n in ("dungeons.normal", "dungeons.hard", "dungeons.heroic"))
+
+    def quest_difficulty(self, frame):
+        if not self.difficulty_screen(frame):
+            return False
+        name = {1: "dungeons.normal", 2: "dungeons.hard", 3: "dungeons.heroic"}.get(self.profile["quest_mode"], "dungeons.heroic")
+        t, pos = self.see(name, frame)
+        self.say("Quest: difficulty screen -> choosing %s" % name.split(".", 1)[1], every=10)
+        self.tap(t, pos)
+        self.activity = "quest"
+        self.acted()
+        time.sleep(1.5)
+        return True
+
+    RESULT_WORDS = ("town", "rerun", "collect", "regroup")      # buttons of the screen AFTER a battle
+
+    def try_chain(self, task, frame, results_only=False):
+        """results_only: a battle is running / loading, so only the buttons that can appear after it are looked for."""
         spec = TASKS[task]
         if spec.get("done"):
             t, pos = self.see(spec["done"], frame, None)
@@ -1453,6 +1636,11 @@ class Afk(Bot):
                 self.acted()
                 return True
         for name in spec["chain"]:
+            # in a battle only result buttons; while a battle is just loading the Team screen's ACCEPT is still allowed;
+            # before a hero switch nothing new is started (no rerun / accept), the run just ends at 'town'
+            allowed = ("town", "collect") if results_only == "switch" else self.RESULT_WORDS + (("accept",) if results_only == "loading" else ())
+            if results_only and not any(w in name for w in allowed):
+                continue
             t, pos = self.see(name, frame)
             if not pos:
                 continue
@@ -1582,6 +1770,8 @@ class Afk(Bot):
 
     def quest_screen(self, frame, active):
         spec = TASKS["quest"]
+        if self.tpl.get("globally.auto-green").find(frame, AFK_MARGIN):       # a battle, not the zone map: never press ESC here
+            return False
         if not active:
             self.say("Quest zone screen is open but Quest is paused -> ESC")
             self.game.press("escape")
@@ -1614,9 +1804,17 @@ class Afk(Bot):
             arrow = self.zone_arrow(frame, "L")
             if arrow:
                 fp = self.zone_fp(frame)
+                diffs = [float(np.abs(fp - q).mean()) for q in self.zone_trail]
+                if diffs and min(diffs) < 6.0 and getattr(self, "_zone_retry", 0) < 2:
+                    self._zone_retry = getattr(self, "_zone_retry", 0) + 1       # the click may simply have been missed: try the arrow again first
+                    log("Quest: the zone banner still looks like one I saw (difference %.1f) -> clicking the left arrow again (%d of 2)" % (min(diffs), self._zone_retry))
+                    self.game.click(*arrow)
+                    time.sleep(2)
+                    return True
+                self._zone_retry = 0
                 if any(self.same_zone(fp, q) for q in self.zone_trail):
                     log("Quest: walking back brought me to a zone I already looked at - the arrow is not moving backwards. Giving up on Quest for now.")
-                    self.evidence(frame, "unknown", "quest_zone_loop", "zone arrow walk went round in a circle (zone already visited at step %d)" % self.zone_steps, 300)
+                    self.save_frame(frame, "unknown", "quest_zone_loop", "zone arrow walk went round in a circle (zone already visited at step %d)" % self.zone_steps, 300)
                     self.zone_trail, self.zone_steps = [], 0
                     self.block("quest", 20, "zone arrows loop")
                     self.game.press("escape")
@@ -1676,7 +1874,7 @@ class Afk(Bot):
             if len(self.entered_log) >= 4 and all(abs(e[1][0] - p[0]) < 15 and abs(e[1][1] - p[1]) < 15 for e in self.entered_log[-4:]):
                 log("Quest: this level keeps opening and returning to the zone map without starting - skipping it")
                 self.quest_bad.append(p)
-                self.evidence(frame, "unknown", "quest_level_loops", "level at %s was clicked 4 times in a minute and the zone map kept coming back" % (p,), 300)
+                self.save_frame(frame, "unknown", "quest_level_loops", "level at %s was clicked 4 times in a minute and the zone map kept coming back" % (p,), 300)
             else:
                 self.quest_fail = 0
             self.acted()
@@ -1687,7 +1885,7 @@ class Afk(Bot):
         self.game.press("escape")
         if self.quest_fail >= 3:
             log("Quest: giving up for now")
-            self.evidence(frame, "unknown", "quest_zone_stuck", "Quest zone screen: no level could be entered in 3 rounds (tried and failed: %s)" % self.quest_bad, 300)
+            self.save_frame(frame, "unknown", "quest_zone_stuck", "Quest zone screen: no level could be entered in 3 rounds (tried and failed: %s)" % self.quest_bad, 300)
             self.block("quest", 20, "no level could be entered")
         return True
 
@@ -2441,6 +2639,16 @@ class Afk(Bot):
             if self.always_on(frame) or self.keepalive(frame) or self.small_tasks(frame) or self.dismiss_known(frame):
                 self.acted()
                 continue
+            req = float(self.profile.get("switch_request") or 0)           # the GUI asks for a hero switch just before a full restart
+            wanting = bool(self.profile.get("alternate")) and req > self._switch_req_done
+            if wanting:
+                if self._no_second or time.time() < self._no_switch_until:
+                    self._switch_req_done = req
+                    raise BotExit(EXIT_SWITCHED, "Alternate characters: no second hero available right now - restarting without switching")
+                if self.on_map_now(frame):
+                    self._switch_req_done = req
+                    self.switch_character("before the full restart")
+                    raise BotExit(EXIT_SWITCHED, "Alternate characters: finished - the GUI restarts the game now")
             ready = [t for t in self.tasks if self.is_ready(t)]
             for t in self.tasks:                    # announce when a pause has run out
                 g = TASKS[t]["group"]
@@ -2461,32 +2669,46 @@ class Afk(Bot):
                     time.sleep(1.5)
                     self.collect_bounties("end")
                     raise BotExit(EXIT_OK, "Every task is waiting for tickets/energy -> exiting (--ear)")
+                if self.switch_if_exhausted(frame):
+                    continue
                 self.say("Waiting - " + "; ".join(left(t) for t in self.tasks), every=300)
-                time.sleep(SLOW_WAIT)
+                time.sleep(getattr(self, "slow_wait", SLOW_WAIT))
                 continue
-            if self.tpl.get("dungeons.zones").find(frame, None):
+            # A battle (the AUTO tab is on screen) or one that is still loading (just clicked accept / fight): nothing to choose
+            # here. Pale enemies and the snowy background can look like menu text, so the menu screens are not even looked at.
+            busy = "battle" if self.tpl.get("globally.auto-green").find(frame, AFK_MARGIN) else ("loading" if time.time() < self.nav_block_until else ("switch" if wanting else False))
+            if busy == "switch":
+                self.say("Alternate characters: finishing the current run, then switching hero before the restart", every=120)
+                if self.tpl.get("dungeons.zones").find(frame, AFK_MARGIN):          # leave the zone map: the hero page opens from the main map
+                    self.game.press("escape")
+                    continue
+            elif busy:
+                self.say("A battle is running or loading - not touching the menus", every=300)
+            if not busy and self.tpl.get("dungeons.zones").find(frame, AFK_MARGIN):
                 self.quest_screen(frame, "quest" in ready)
                 continue
-            if "fishing" in ready and self.claim_bait(frame):
+            if not busy and "quest" in ready and self.quest_difficulty(frame):
                 continue
-            if ("raid" in ready and self.raid_screens(frame)) or ("world-boss" in ready and self.boss_screens(frame)):
+            if not busy and "fishing" in ready and self.claim_bait(frame):
+                continue
+            if not busy and (("raid" in ready and self.raid_screens(frame)) or ("world-boss" in ready and self.boss_screens(frame))):
                 self.acted()
                 continue
-            if "invasion" in ready and self.invasion_wave(frame):
+            if not busy and "invasion" in ready and self.invasion_wave(frame):
                 self.acted()
                 continue
-            if "trials" in ready and self.trials_difficulty(frame):
+            if not busy and "trials" in ready and self.trials_difficulty(frame):
                 self.acted()
                 continue
-            if "gauntlet" in ready and self.trials_difficulty(frame, "gauntlet"):
+            if not busy and "gauntlet" in ready and self.trials_difficulty(frame, "gauntlet"):
                 self.acted()
                 continue
-            if any(self.try_chain(t, frame) for t in ready if TASKS[t]["chain"] or TASKS[t].get("done")):
+            if any(self.try_chain(t, frame, busy) for t in sorted(ready, key=lambda t: t != self.activity) if TASKS[t]["chain"] or TASKS[t].get("done")):   # the activity we are in goes first (the Team screen's ACCEPT is shared)
                 continue
             self.idle += 1
             if self.idle < 3:                       # screens change over a second or two; give them time
                 continue
-            if self.navigate(frame, [t for t in ready if t != "fishing"]):
+            if not wanting and self.navigate(frame, [t for t in ready if t != "fishing"]):
                 continue
             self.lost(frame, [t for t in ready if t != "fishing"] or ready)
 

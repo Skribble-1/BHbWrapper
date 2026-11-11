@@ -32,30 +32,35 @@ if you need steam functionality though additional support is not likely for that
 ------------------------------------------------------------------------------
   1. Open  https://github.com/Skribble-1/BHbWrapper
   2. Click the green "Code" button > "Download ZIP".
-  3. Right-click the zip file > "Extract All..." 
-  4. Extract to your desired directory such as your Documents folder. 
-  5. Do not move the "BHPyBot" folder out of it: it must stay right next
+  3. Right-click the zip file > Properties > tick "Unblock" if you see it > OK.
+  4. Right-click the zip file > "Extract All..." 
+  5. Extract to your desired directory such as your Documents folder. You get
+     a folder (named BHbWrapper-main or similar): this is THE MAIN FOLDER.
+  6. Do not move the "BHPyBot" folder out of it: it must stay right next
      to  ~start_gui.bat.
 
 Expected folder layout:
-  C:\\<Your Directory>\
-    BHbWrapper\
-      BHPyBot\
-      sample_scripts(Legacy)\
+  C:\<Your Directory>\
+    BHbWrapper-main\            <- THE MAIN FOLDER
+      BHPyBot\                  <- the bot and the window (bhbot.py, bh_gui.py ...)
+        Scripts\               <- the scripts you pick in the window (Fish.bat, AFK.bat ...)
+      sample-scripts(Legacy)\   <- old scripts of the original Java bot (not used)
       ~start_gui.bat
+  Your account files (user-config.properties, bh-client\) are created in THE
+  MAIN FOLDER by the setup below.
 
 ------------------------------------------------------------------------------
   2. START THE WINDOW  (the first start installs what is needed)
 ------------------------------------------------------------------------------
-  1. Double-click  ~start_gui.bat  in THE BOT FOLDER.
+  1. Double-click  ~start_gui.bat  in THE MAIN FOLDER.
   2. "Windows protected your PC"? Click "More info" > "Run anyway".
   3. First time only: it installs Python (if missing) and a few packages. This
      can take several minutes.
        - Click Yes if Windows asks for permission.
        - If it says Python was just installed, close the command (black) window and
          double-click ~start_gui.bat again.
-  4. The "BH Bot Controller" window opens. If it asks for the bot folder,
-     select BHbWrapper.
+  4. The "BH Bot Controller" window opens. If it asks for the main folder,
+     select THE MAIN FOLDER (the one that contains the BHPyBot folder).
 
   Hint: right-click ~start_gui.bat > Send to > Desktop (create shortcut) for
   one-click starts later.
@@ -110,14 +115,14 @@ If the bot later cannot log in, the token may have expired (it changes when you
 ------------------------------------------------------------------------------
   4. FIRST RUN
 ------------------------------------------------------------------------------
-I recommend trying 'BHPyBot/Fish.bat' in the 'Script' box and in the 'Then run'
-    box: BHPyBot/AFK.bat.
+I recommend trying 'BHPyBot/Scripts/Fish.bat' in the 'Script' box and in the 'Then run'
+    box: BHPyBot/Scripts/AFK.bat.
     Click Start. A small game window opens by itself and logs in.
     Fish.bat fishes 18 times (at default; edit the number in the .bat to change it), then
     AFK.bat runs the full event chain. Between the two scripts, the ESC button is pressed
     a few times to ensure any stray menus are closed.
 
-Note - For a safe test: BHPyBot/AFK.watch.bat only says in the console what it sees and 
+Note - For a safe test: BHPyBot/Scripts/AFK.watch.bat only says in the console what it sees and 
     what it would do; it never clicks. Useful for troubleshooting / testing.
 
 ------------------------------------------------------------------------------
@@ -141,7 +146,17 @@ Buttons and boxes in the window:
                                closes the game and starts again after N min.
     Clear out/unknown ...      deletes old unknown-screen screenshots when you
                                click Start (default 14 days).
-    Look at the game every     how often the bot checks the screen (seconds).
+    Alternate characters...    (needs a 2nd hero unlocked) switches between your
+                               two heroes: when every task of one is waiting for
+                               tickets/energy, and just before a 'Full restart'.
+                               Hover over it for the details.
+    Base Check Interval        extra pause between looks when EVERY task is
+                               waiting for tickets/energy (default 15 s).
+                               Higher = cooler PC.
+    Look at the game every     how fast the bot reacts while something is
+                               going on (default 1 s; 2-3 s is fine).
+    Repeat 'waiting' messages  only changes how often the log repeats a line.
+    (Hover over any setting in the window for what it does and where it is used.)
 
 Hints:
     - Keep the PC awake (Windows sleep stops the bot) and leave the little game
@@ -158,38 +173,35 @@ Hints:
                            external.application.chrome.path=C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe
   "Python not found"       Close everything and run ~start_gui.bat again.
   Game window is blank     Close it, then click Start again.
-  Bot seems stuck          Screenshots go to  BHbWrapper\out\unknown . When
+  Bot seems stuck          Screenshots go to  BHPyBot\out\unknown . When
                            you ask for help, send both associated screenshots.
                            Hide your name and NEVER include the token.
-  Settings seem ignored    Delete BHbWrapper\overrides.json to go back to the
+  Settings seem ignored    Delete BHPyBot\overrides.json to go back to the
                            defaults.
 
 ------------------------------------------------------------------------------
-  WHICH FILES THE ADD-ON USES (everything else is the original, legacy bot)
+  WHICH FILES ARE USED
 ------------------------------------------------------------------------------
   USED:
     ~start_gui.bat                     opens the window (installs Python, etc.)
-    BHbWrapper\bh_gui.py               the controller window
-    BHbWrapper\bh_setup.py             the "Initial Setup Help" window
-    BHbWrapper\bhbot.py                the bot (Python)
-    BHbWrapper\templates\              the pictures/colour patterns it knows
-    BHbWrapper\*.bat                   Fish, AFK, AFK2, AFK.watch, Esc
-    BHbWrapper\overrides.json          made by the override buttons
-    BHbWrapper\out\                    screenshots the bot saves
-  Created or read in THE BOT FOLDER:
+    BHPyBot\bh_gui.py                  the controller window
+    BHPyBot\bh_setup.py                the "Initial Setup Help" window
+    BHPyBot\bhbot.py                   the bot (Python)
+    BHPyBot\templates\                 the pictures/colour patterns it knows
+    BHPyBot\bh-client\                 two Kongregate script files the game page needs
+    BHPyBot\Scripts\*.bat              Fish, AFK, AFK2, AFK.watch, Esc (the scripts the window lists)
+    BHPyBot\overrides.json             made by the override buttons
+    BHPyBot\out\                       screenshots the bot saves
+  Created in THE MAIN FOLDER by the setup:
     user-config.properties (+ .bak)    your account (id, name, token)
     readonly.<name>.user-config.properties
                                        optional per-account profile; not needed
-    bh-client\                         the game page files
+    bh-client\                         the game page files (made from your account)
     chrome-user-dir\                   the bot's own Chrome profile (automatic)
 
-  LEGACY (original Java bot; NOT used by this add-on, You'll need Java):
-    src, pom.xml, build.*, release.sh, _.bat, bot.sh, web.bot.bat,
-    steam.bot.bat, AFK.web.bat, AFK.steam.bat, help.*, setting.*, client.*,
-    prepare-mini-chrome-client.txt, sample-scripts, notes, web, .github, and
-    the original README.md.
-    (client.bat / setting.bat only made files this add-on creates itself or
-    that the override buttons replace.)
+  LEGACY (original Java bot; NOT used, would need Java):
+    sample-scripts(Legacy), LICENSE and README.md (the original's, kept for
+    history).
 
 ------------------------------------------------------------------------------
   ADVANCED (optional)
@@ -199,7 +211,7 @@ Hints:
   (Trials 13-15) and counts rows from a known tier for others. To teach it one:
   open the list, save a screenshot (python bhbot.py snap), then
     python bhbot.py template out\snap\<file>.png trials.tier.12 --rect=x,y,w,h --ink CCCCCC
-  (a box around the text "TIER 21"). Run  python bhbot.py selftest  to check
+  (a box around the text "TIER 12"). Run  python bhbot.py selftest  to check
   the templates.
 
 ------------------------------------------------------------------------------
