@@ -1333,6 +1333,12 @@ class Afk(Bot):
     def is_ready(self, task):
         if task in self.disabled:
             return False
+        if task == "world-boss" and self.profile.get("wb_boss") not in WB_NAMES:       # nothing to summon: do not even open the window
+            if not getattr(self, "_wb_warned", False):
+                self._wb_warned = True
+                log("World Boss: skipped - no boss is chosen. Pick one with the 'World Boss' override button (or ig.user.world-boss.name in your profile).")
+            return False
+        self._wb_warned = False if task == "world-boss" else getattr(self, "_wb_warned", False)
         return self.blocked.get(TASKS[task]["group"], (0, ""))[0] <= time.time()
 
     # ---- helpers ------------------------------------------------------------ #
@@ -2041,7 +2047,7 @@ class Afk(Bot):
             if want not in WB_NAMES:
                 log("World Boss: no boss chosen (profile ig.user.world-boss.name=%s, or --boss) -> skipping World Boss for now" % "|".join(WB_NAMES))
                 self.block("world-boss", 1440, "no boss chosen")
-                self.game.esc(2)
+                self.game.esc(3, gap=1.0)
                 return True
             if t.get("boss." + want).find(frame, None):
                 self.say("World Boss: %s is showing -> SUMMON" % want, every=10)
@@ -2057,7 +2063,7 @@ class Afk(Bot):
                 self.evidence(frame, "unknown", "boss_not_found", "boss '%s' not found in the World Boss pages" % want, 300)
                 self._boss_flips = 0
                 self.block("world-boss", 60, "boss not unlocked")
-                self.game.esc(2)
+                self.game.esc(3, gap=1.0)
                 return True
             self.say("World Boss: looking for '%s' (page %s)" % (want, dots[1] if dots else "?"), every=5)
             self.game.click(*self.ARROW_R)
@@ -2491,6 +2497,13 @@ class Afk(Bot):
             return False
         if S["stage"] == "list":                                          # the list closed without us choosing (or never opened)
             S["stage"] = ""
+        if play:                                                          # right after a battle the screen is still sliding in: the first click is lost
+            if now - S.get("play_seen", 0) > 3:
+                S["play_since"] = now
+            S["play_seen"] = now
+            if now - S["play_since"] < 2.0:
+                time.sleep(0.5)
+                return True
         S["tries"] += 1
         if S["tries"] > 4:
             log("Invasion: could not open the wave list -> playing with the current wave")
@@ -2662,6 +2675,8 @@ class Afk(Bot):
                 def left(t):
                     if t in self.disabled:
                         return "%s: switched off in the overrides" % TASKS[t]["label"]
+                    if t == "world-boss" and self.profile.get("wb_boss") not in WB_NAMES:
+                        return "World Boss: no boss chosen (World Boss override button)"
                     until, why = self.blocked.get(TASKS[t]["group"], (0, ""))
                     return "%s: %s, retry in %d min" % (TASKS[t]["label"], why, max(1, round((until - time.time()) / 60)))
                 if self.ear:
