@@ -183,12 +183,12 @@ Hints:
   WHICH FILES ARE USED
 ------------------------------------------------------------------------------
   USED:
+    bh-client\                         two Kongregate script files the game page needs
     ~start_gui.bat                     opens the window (installs Python, etc.)
     BHPyBot\bh_gui.py                  the controller window
     BHPyBot\bh_setup.py                the "Initial Setup Help" window
     BHPyBot\bhbot.py                   the bot (Python)
     BHPyBot\templates\                 the pictures/colour patterns it knows
-    BHPyBot\bh-client\                 two Kongregate script files the game page needs
     BHPyBot\Scripts\*.bat              Fish, AFK, AFK2, AFK.watch, Esc (the scripts the window lists)
     BHPyBot\overrides.json             made by the override buttons
     BHPyBot\out\                       screenshots the bot saves

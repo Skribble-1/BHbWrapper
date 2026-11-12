@@ -565,6 +565,22 @@
   "ink": "ffffff",
   "kind": "ink"
  },
+ "heroes.confirm": {
+  "at": [
+   335,
+   436
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "heroes.title": {
+  "at": [
+   270,
+   55
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
  "invasion.accept": {
   "at": [
    474,
