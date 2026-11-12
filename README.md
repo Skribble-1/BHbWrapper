@@ -1,5 +1,5 @@
-## THE ORIGINAL 9-9-9-9 BIT HERO BOT IS NO LONGER MAINTAINED.
-## This README is that legacy readme kept for historical purposes.
+## BHbWrapper started off as a python based wrapper for the original 9-9-9-9 Bit Hero Bot which IS NO LONGER MAINTAINED.
+## THIS readme is that legacy readme kept for historical purposes.
 ## FOR ANYTHING PERTAINING TO THE PYTHON WRAPPER, SEE THE README IN THE BHPyBot FOLDER.
 ___
 ## Bit Heroes bot
