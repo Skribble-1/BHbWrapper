@@ -141,6 +141,7 @@ class ScriptRun:
         self.events = events
         self.proc = None
         self.paused = False
+        self.last_output = time.time()     # for the 'Always Restart' watchdog: a bot that prints nothing for 20 min is hung
         self._suspended = []
         self.user_stopped = False
         self.nonzero_exit = False   # the bot printed "exit code: N" with N != 0
@@ -179,6 +180,7 @@ class ScriptRun:
             if not chunk:
                 break
             text = ANSI_RE.sub("", chunk.decode("utf-8", errors="replace")).replace("\r\n", "\n").replace("\r", "\n")
+            self.last_output = time.time()
             self.events.put(("log", text))
             tail = (tail + text)[-300:]
             for m in EXIT_RE.finditer(text):
@@ -432,6 +434,7 @@ def run_gui():
     compact = tk.BooleanVar(value=bool(settings.get("compact_log", False)))
     clean_on = tk.BooleanVar(value=bool(settings.get("clean_unknown", True)))
     alt_var = tk.BooleanVar(value=bool(settings.get("alternate_chars", False)))
+    always_var = tk.BooleanVar(value=bool(settings.get("always_restart", True)))
     clean_days = tk.StringVar(value=str(settings.get("clean_unknown_days", 14)))
 
     frm = ttk.Frame(root, padding=10)
@@ -482,6 +485,21 @@ def run_gui():
     ttk.Label(btns, textvariable=status, font=("TkDefaultFont", 10, "bold")).grid(row=0, column=7, rowspan=2, sticky="e")
     ck_alt = ttk.Checkbutton(alt_row, text="Alternate characters...", variable=alt_var, command=lambda: save_speed())
     ck_alt.pack(side="left")
+    ck_always = ttk.Checkbutton(alt_row, text="Always Restart", variable=always_var, command=lambda: save_speed())
+    ck_always.pack(side="left", padx=(16, 0))
+    Tip(ck_always, "ALWAYS RESTART (default on)\n"
+                   "Definition: whenever the bot cannot carry on by itself, the window closes Chrome completely and starts a brand-new "
+                   "game window and script - it never just stops.\n"
+                   "Use it for: running 24/7 unattended. It restarts after:\n"
+                   "  - a Disconnected message (waits 60 s first so the server can settle),\n"
+                   "  - a screen the bot does not know (3 identical screenshots in out/unknown) - this overrides 'If the screen is stuck' "
+                   "so it always restarts and never shuts down,\n"
+                   "  - the bot hitting an error, not finding the game, or a direct message it cannot close,\n"
+                   "  - the bot hanging: no output for 20 minutes.\n"
+                   "If restarts keep failing, the waits grow (10 s, 30 s, 1, 3, 5 and finally 10 min) but it keeps trying.\n"
+                   "Not affected: Force Stop always stops for good; server maintenance has its own setting; scripts that finish normally "
+                   "(ok) simply finish. Turn it OFF to get the old method (stop and wait for you to interact).\n"
+                   "Used in: this window (bh_gui.py), the script-finished handler and the 20-minute watchdog.")
     Tip(ck_alt, "ALTERNATE CHARACTERS (default off)\n"
                 "Designed for: accounts with a second hero (unlocked at higher levels). Both heroes get farmed in turn.\n"
                 "Used in: bhbot.py switch_character() - opens YOUR HEROES (the small skull above your player badge), picks the hero "
@@ -624,6 +642,19 @@ def run_gui():
                "game and starts the script(s) again after this many minutes.")
     ttk.Label(mt, text="min").pack(side="left")
 
+    RESTART_REASONS = {1: "the bot hit an error", 2: "the bot is stuck", 3: "the game screen was not found", 4: "disconnected",
+                       5: "a direct message is open", 6: "the game was not found", 8: "stuck screen"}
+
+    def restart_plan(code):
+        """(seconds to wait, restarts in the last 30 min before this one, reason). Failing restarts wait longer but never give up."""
+        now = time.time()
+        times = [t for t in state.get("ar_times", []) if now - t < 1800]
+        state["ar_times"] = times + [now]
+        delay = (10, 30, 60, 180, 300)[min(len(times), 4)] if len(times) < 5 else 600
+        if code == 4:
+            delay = max(delay, 60)                              # an instant relaunch after a disconnect often disconnects again
+        return delay, len(times), RESTART_REASONS.get(code, "the script ended unexpectedly" if code is None else "the script ended (exit code %s)" % code)
+
     def maint_minutes():
         try:
             return max(1, min(720, int(float(maint_var.get()))))
@@ -677,11 +708,13 @@ def run_gui():
         except ValueError:
             rmin = 0
         action = STUCK_CHOICES.get(stuck_var.get(), "none")
+        if always_var.get():
+            action = "restart"                                  # 'Always Restart' never shuts down or does nothing on a stuck screen
         try:
             base = min(max(float(base_var.get()), 1.0), 300.0)
         except ValueError:
             base = 15.0
-        settings.update(tick=tick, base_tick=base, wait_every=every, restart_min=rmin, stuck_action=action, alternate_chars=bool(alt_var.get()))
+        settings.update(tick=tick, base_tick=base, wait_every=every, restart_min=rmin, stuck_action=action, alternate_chars=bool(alt_var.get()), always_restart=bool(always_var.get()))
         save_settings(settings)
         d = load_ov()
         old = d.get("settings") if isinstance(d.get("settings"), dict) else {}
@@ -1095,6 +1128,15 @@ def run_gui():
                         state["restart_pending"] = True
                         kill_chrome()
                         root.after(5000, begin_again)
+                    elif not user_stopped and always_var.get() and not ok and last_exit not in (7, 9, 10):
+                        delay, n_recent, reason = restart_plan(last_exit)
+                        banner("ALWAYS RESTART: %s - new game window in %d s (restart %d in the last 30 min)" % (reason, delay, n_recent + 1))
+                        status.set("%s - restarting in %d s..." % (reason.capitalize(), delay))
+                        b_start.configure(state="disabled")
+                        b_stop.configure(state="normal")
+                        state["restart_pending"] = True
+                        kill_chrome()                                       # Chrome is closed completely; begin_again opens a new one
+                        root.after(delay * 1000, begin_again)
                     elif not user_stopped and last_exit == 7:
                         banner("STUCK - restarting the game and script(s)")
                         status.set("Stuck screen - restarting...")
@@ -1167,6 +1209,9 @@ def run_gui():
                 status.set("Switching character before the restart...")
             else:
                 restart_all("every %d min" % rmin)
+        elif (always_var.get() and state["run"] and state["run"].alive and not state["run"].paused and not state.get("restarting")
+                and not state.get("chaining") and time.time() - state["run"].last_output > 20 * 60):
+            restart_all("Always Restart: the bot printed nothing for 20 minutes - it looks hung")
         elif state.get("switch_wait") and state["run"] and state["run"].alive and time.time() - state["switch_wait"] > 20 * 60:
             state.pop("switch_wait", None)         # the bot could not switch in 20 minutes: restart anyway
             restart_all("every %d min (character switch took too long)" % rmin)

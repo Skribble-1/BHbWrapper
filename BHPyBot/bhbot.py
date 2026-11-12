@@ -1246,7 +1246,7 @@ class Afk(Bot):
     PVP_FIGHT_ROW = 54            # pixels between the PVP 'Fight' buttons
     GIVE_UP_NAV = 5               # clicked a map icon this many times and nothing opened -> skip the task for a while
 
-    def __init__(self, game, templates, props, wanted, profile, ear=False, tick=1.0, retry=10):
+    def __init__(self, game, templates, props, wanted, profile, ear=False, tick=1.0, retry=30):
         super().__init__(game, templates, props)
         self.wanted, self.profile, self.ear, self.tick, self.retry = wanted, profile, ear, tick, retry
         self.base_profile, self.disabled, self._ov_mtime = dict(profile), set(), -1
@@ -1383,7 +1383,7 @@ class Afk(Bot):
         if due("talk", 1) and self.activity != "pvp":
             t = self.tpl.get("globally.talkRightArrow")
             pos = None if self.tpl.get("dungeons.zones").find(frame, None) else (t.find(frame, 60) or t.find(frame, None))   # the zone map's yellow arrow looks the same; prefer the arrow at its usual spot (a grey carousel arrow can look alike)
-            if pos and self.difficulty_screen(frame):                     # NORMAL / HARD / HEROIC picker: its '>' arrows and title are not a dialogue
+            if pos and (self.difficulty_screen(frame) or self.news_open(frame)):                     # NORMAL / HARD / HEROIC picker: its '>' arrows and title are not a dialogue
                 pos = None
             plate = self.dialogue_plate(frame) if pos else None           # a name plate (any enemy-tier colour) must be there too
             if pos and plate:
@@ -1421,12 +1421,21 @@ class Afk(Bot):
                 self.say("'Items' popup -> ESC", every=10)
                 self.game.press("escape")
                 return True
-        if due("fishranks", 2):                                 # 'FISHING RANKS' window (the game opens it by itself now and then)
+        if due("fishranks", 2):                                 # 'FISHING RANKS' window: opens when the hero's click lands on the weekly player statue
             if self.tpl.get("globally.fishing-ranks").find(frame):
+                if now - getattr(self, "_ranks_last", 0) > 8:   # a NEW occurrence (not the same window that is still closing)
+                    self._ranks_times = [x for x in getattr(self, "_ranks_times", []) if now - x < 1800] + [now]
+                self._ranks_last = now
+                if len(self._ranks_times) >= 4:
+                    raise BotExit(EXIT_RESTART, "the 'Fishing Ranks' window opened %d times in 30 min (the hero stands at the statue) -> restarting the game" % len(self._ranks_times))
                 self._ranks_n = getattr(self, "_ranks_n", 0) + 1
                 if self._ranks_n % 2:
                     self.say("'Fishing Ranks' window -> clicking its red X", every=10)
                     self.game.click(668, 75)
+                    if len([x for x in self._ranks_times if now - x < 600]) >= 2 and now - getattr(self, "_leave_at", 0) > 600:
+                        self._leave_at = now
+                        time.sleep(1.5)
+                        self.leave_statue()
                 else:
                     self.say("'Fishing Ranks' window is still open -> ESC", every=10)
                     self.game.press("escape")
@@ -1437,11 +1446,16 @@ class Afk(Bot):
                 self.say("The fishing scene is open (not fishing now) -> ESC", every=10)
                 self.game.press("escape")
                 return True
-        if due("news", 60):
-            t, pos = self.see("globally.news", frame, None)
-            if pos:
-                self.say("News popup -> ESC")
-                self.game.press("escape")
+        if due("news", 3):
+            if self.news_open(frame):
+                self._news_n = getattr(self, "_news_n", 0) + 1
+                if self._news_n % 2:                                    # ESC alone is often ignored by this window: the red X always works
+                    self.say("News popup -> clicking its red X", every=10)
+                    self.game.click(621, 98)
+                else:
+                    self.say("News popup is still open -> ESC", every=10)
+                    self.game.press("escape")
+                time.sleep(1)
                 return True
         if due("daily", 10):
             t, pos = self.see("globally.dailyRewards", frame, None)
@@ -1611,6 +1625,32 @@ class Afk(Bot):
             return True
         self.blocked = mine
         return False
+
+    def news_open(self, frame):
+        """The NEWS window (its carousel has yellow left/right arrows that must not be mistaken for a dialogue)."""
+        return bool(self.tpl.get("globally.news").find(frame, 60))
+
+    def leave_statue(self):
+        """The statue (it copies a different player every week) sits where the hero stands. The fishing PLAY button moves the hero to
+        a fishing spot far from it: fishing icon -> PLAY -> wait -> ONE ESC (back to the map, hero now somewhere else)."""
+        log("The 'Fishing Ranks' window keeps opening -> moving the hero away from the statue: fishing icon -> PLAY -> wait -> ESC")
+        icon, play = self.tpl.get("place.bait"), self.tpl.get("fishing.menu-play")
+        pos = icon.find(self.game.screenshot(), None)
+        if not pos:
+            log("(the fishing icon was not found - skipping)")
+            return False
+        self.game.click(*icon.center_of(pos))
+        time.sleep(2)
+        pos = play.find(self.game.screenshot())
+        if not pos:
+            log("(the fishing menu did not open - ESC)")
+            self.game.press("escape")
+            return False
+        self.game.click(*play.center_of(pos))
+        time.sleep(6)                                           # the game walks the hero to the fishing spot and loads it
+        self.game.press("escape")
+        time.sleep(1.5)
+        return True
 
     def difficulty_screen(self, frame):
         """The dungeon's NORMAL / HARD / HEROIC picker (all three buttons visible)."""
@@ -1949,11 +1989,13 @@ class Afk(Bot):
             time.sleep(1.5)
             return True
         names = {1: "raid.normal", 2: "raid.hard", 3: "raid.heroic"}
-        if all(t.get(n).find(frame, None) for n in names.values()):                           # difficulty buttons
+        found = {k: t.get(n).find(frame, AFK_MARGIN) for k, n in names.items()}               # difficulty buttons, each at its own spot
+        if all(found.values()) and abs(found[1][1] - found[2][1]) <= 4 and abs(found[2][1] - found[3][1]) <= 4 \
+                and found[1][0] < found[2][0] < found[3][0]:                                    # ... in one row, left to right
             mode = self.profile["raid_mode"] if self.profile["raid_mode"] in names else 3
             tm = t.get(names[mode])
             self.say("Raid: choosing %s" % names[mode].split(".")[1], every=10)
-            self.game.click(*tm.center_of(tm.find(frame, None)))
+            self.game.click(*tm.center_of(found[mode]))
             time.sleep(1.5)
             return True
         return False
@@ -2498,7 +2540,7 @@ class Afk(Bot):
         if S["stage"] == "list":                                          # the list closed without us choosing (or never opened)
             S["stage"] = ""
         if play:                                                          # right after a battle the screen is still sliding in: the first click is lost
-            if now - S.get("play_seen", 0) > 3:
+            if now - S.get("play_seen", 0) > 30:                          # a NEW visit (not just the next look: 'check every' may be 4 s or more)
                 S["play_since"] = now
             S["play_seen"] = now
             if now - S["play_since"] < 2.0:
@@ -2574,6 +2616,8 @@ class Afk(Bot):
         # Only the right-hand arrow of a popup counts (gear / pet pages: x ~650). Never in PVP, and never the yellow turn
         # marker over a hero in a battle (it sits on the left side of the screen).
         apos = None if self.activity == "pvp" else next((p for p in ta.find_all(frame, margin=None) if p[0] >= 600), None)
+        if apos and self.news_open(frame):          # the News carousel's arrow: handled by the News popup check, not a dialogue
+            apos = None
         if apos:                                    # a yellow 'next' arrow that stays for 8 s is a dialogue we did not recognise
             self._arrow_since = getattr(self, "_arrow_since", None) or time.time()
             if time.time() - self._arrow_since >= 8:
@@ -2956,7 +3000,7 @@ def main(argv=None):
     p.add_argument("--boss-tier", type=int, default=0, help="world boss tier, e.g. 12 (overrides the profile)")
     p.add_argument("--boss-mode", type=int, default=0, choices=(0, 1, 2, 3), help="world boss difficulty: 1 normal, 2 hard, 3 heroic (overrides the profile)")
     p.add_argument("--raid-level", type=int, default=0, help="raid number: 1 = first raid (Tier 4) ... 12 = Tier 15 (overrides the profile)")
-    p.add_argument("--retry", type=int, default=10, help="longest pause (minutes) after running out of tickets/energy before looking again (default 10)")
+    p.add_argument("--retry", type=int, default=30, help="longest pause (minutes) after running out of tickets/energy before looking again (default 30)")
     p.add_argument("--tick", type=float, default=1.0, help="seconds between looks at the screen (default 1)")
     p.add_argument("--watch", action="store_true", help="only say what the bot sees and would do, never click"); p.set_defaults(fn=cmd_afk)
     p = sub.add_parser("esc", help="press ESC N times"); p.add_argument("times", type=int, nargs="?", default=4); p.set_defaults(fn=cmd_esc)
