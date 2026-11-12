@@ -1,5 +1,7 @@
-## BHbWrapper started off as a python based wrapper for the original 9-9-9-9 Bit Hero Bot which IS NO LONGER MAINTAINED.
-## THIS readme is that legacy readme kept for historical purposes.
+## BHbWrapper started off as a python based wrapper to add a simple gui for the original 9-9-9-9 Bit Hero Bot
+## 9-9-9-9 Bit Hero Bot is no longer maintained which forced this project to make several advancements.
+## BHbWrapper is no longer just a simple wrapper; it is its own bot.
+## THIS readme below is the legacy readme kept only for historical purposes.
 ## FOR ANYTHING PERTAINING TO THE PYTHON WRAPPER, SEE THE README IN THE BHPyBot FOLDER.
 ___
 ## Bit Heroes bot
