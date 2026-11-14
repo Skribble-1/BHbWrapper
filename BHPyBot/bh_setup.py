@@ -132,8 +132,13 @@ def chrome_candidates(config_path=None):
         except (OSError, subprocess.SubprocessError):
             pass
     else:
+        # LINUX / MACOS: NOT TESTED - community help wanted (see README.txt)
         cands += [shutil.which(n) or "" for n in ("google-chrome", "google-chrome-stable", "chrome", "chromium", "chromium-browser")]
-        cands.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+        cands += ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/opt/google/chrome/chrome",
+                  "/usr/bin/chromium", "/usr/bin/chromium-browser", "/snap/bin/chromium",
+                  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                  str(Path.home() / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+                  "/Applications/Chromium.app/Contents/MacOS/Chromium"]
     return cands
 
 
@@ -187,7 +192,7 @@ def make_pages(bot_dir):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
     except Exception as e:                                   # e.g. opencv not installed yet
-        return False, ["Could not load the bot (%s). Run ~start_gui.bat once to install the required packages." % e]
+        return False, ["Could not load the bot (%s). Run start_win-gui.bat once to install the required packages." % e]
     props = mod.load_props(Path(bot_dir) / "user-config.properties")
     accounts = mod.load_accounts(props)
     if not accounts:
@@ -262,10 +267,11 @@ def open_setup(root, bot_dir):
         if ok:
             chrome_msg.set("Opened with " + how)
             return
-        messagebox.showinfo("Chrome not found", "I could not find Chrome automatically. Please select chrome.exe "
-                            "(usually in C:\\Program Files\\Google\\Chrome\\Application).", parent=win)
+        messagebox.showinfo("Chrome not found", "I could not find Chrome automatically. Please select the Chrome program "
+                            "(Windows: chrome.exe, usually in C:\\Program Files\\Google\\Chrome\\Application; "
+                            "Linux: google-chrome or chromium; macOS: Google Chrome inside Google Chrome.app/Contents/MacOS).", parent=win)
         from tkinter import filedialog
-        p = filedialog.askopenfilename(parent=win, title="Select chrome.exe", filetypes=[("Chrome", "chrome.exe chrome google-chrome*"), ("All files", "*")])
+        p = filedialog.askopenfilename(parent=win, title="Select Chrome (chrome.exe / google-chrome / chromium)", filetypes=[("Chrome", "chrome.exe chrome google-chrome*"), ("All files", "*")])
         if p:
             chosen["exe"] = p
             ok, how = launch_chrome(GAME_URL, config, p)

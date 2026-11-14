@@ -46,14 +46,14 @@ class Tip:
 
 IS_WIN = os.name == "nt"
 APP_DIR = Path(__file__).resolve().parent          # the BHPyBot folder
-DEFAULT_BOT_DIR = APP_DIR.parent if APP_DIR.name.lower() in ("bhpybot", "bhbwrapper") else APP_DIR   # the main folder (holds ~start_gui.bat and your account files)
+DEFAULT_BOT_DIR = APP_DIR.parent if APP_DIR.name.lower() in ("bhpybot", "bhbwrapper") else APP_DIR   # the main folder (holds start_win-gui.bat and your account files)
 SETTINGS_FILE = APP_DIR / "bh_gui_settings.json"
 OVERRIDES_FILE = APP_DIR / "overrides.json"        # read by bhbot.py (live); written by the override buttons below
 
 SCRIPT_EXT = ".bat" if IS_WIN else ".sh"
-HIDDEN_SCRIPTS = {"_", "web.bot", "steam.bot", "help", "bot", "client"}  # internal launchers
+HIDDEN_SCRIPTS = {"_", "_env", "web.bot", "steam.bot", "help", "bot", "client"}  # internal launchers
 JAVA_NAMES = {"java", "javaw", "java.exe", "javaw.exe"}
-GAME_NAME_PARTS = ("chrome",)  # the bot's mini game client; spared on pause / (by default) on stop
+GAME_NAME_PARTS = ("chrome", "chromium")  # the bot's mini game client; spared on pause / (by default) on stop
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 EXIT_RE = re.compile(r"exit code:\s*(-?\d+)", re.I)
@@ -105,7 +105,7 @@ def kill_chrome(port=9222):
     victims = []
     for p in psutil.process_iter():
         try:
-            if "chrome" not in p.name().lower():
+            if "chrom" not in p.name().lower():          # chrome / Google Chrome / chromium
                 continue
             cl = " ".join(p.cmdline())
         except psutil.Error:
@@ -302,7 +302,7 @@ class ScriptRun:
 
 
 # --------------------------------------------------------------------------- #
-# Game window helper (Windows only): bring the game forward and press ESC
+# Game window helper: bring the game forward and press ESC (Windows: real key presses; Linux/macOS: through the bot, untested)
 # --------------------------------------------------------------------------- #
 GAME_WINDOW_TITLE = "Bit Heroes"       # <title> of bh-client/index*.html
 GAME_WINDOW_CLASS = "Chrome_WidgetWin_1"
@@ -312,7 +312,14 @@ def press_esc_in_game(times=4, gap=0.4, settle=1.0):
     """Focus the mini-client window and press ESC `times` times.
     Returns (ok, message). Uses real keyboard input, same as the bot itself."""
     if not IS_WIN:
-        return False, "ESC reset is only available on Windows"
+        # LINUX / MACOS: NOT TESTED. No window juggling: ask the bot to press ESC through Chrome's control port (works without focus).
+        try:
+            r = subprocess.run([sys.executable, str(APP_DIR / "bhbot.py"), "esc", str(times)], cwd=str(APP_DIR),
+                               capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError) as e:
+            return False, "ESC through the bot failed: %s" % e
+        time.sleep(settle)
+        return r.returncode == 0, ("pressed ESC x%d" % times) if r.returncode == 0 else "bot esc exited with code %d" % r.returncode
     import ctypes
     from ctypes import wintypes
 
@@ -381,7 +388,7 @@ def discover_scripts(bot_dir, extras):
     for folder in (APP_DIR / "Scripts", APP_DIR, bot_dir):        # BHPyBot/Scripts first; your own scripts may also sit in BHPyBot or the main folder
         if folder.is_dir():
             for f in sorted(folder.glob("*" + SCRIPT_EXT)):
-                if f.stem in HIDDEN_SCRIPTS or f.stem.endswith(".bot") or f.stem.lstrip("~") == "start_gui":
+                if f.stem in HIDDEN_SCRIPTS or f.stem.endswith(".bot") or (f.stem.startswith("start_") and f.stem.endswith("-gui")):
                     continue
                 label = f.name
                 if folder == APP_DIR / "Scripts":
@@ -430,7 +437,7 @@ def run_gui():
     only_if_ok = tk.BooleanVar(value=settings.get("only_if_ok", True))
     kill_game = tk.BooleanVar(value=settings.get("kill_game", False))
     status = tk.StringVar(value="Idle")
-    esc_count = tk.StringVar(value=str(settings.get("esc_count", 4 if IS_WIN else 0)))
+    esc_count = tk.StringVar(value=str(settings.get("esc_count", 4)))
     compact = tk.BooleanVar(value=bool(settings.get("compact_log", False)))
     clean_on = tk.BooleanVar(value=bool(settings.get("clean_unknown", True)))
     alt_var = tk.BooleanVar(value=bool(settings.get("alternate_chars", False)))
@@ -520,6 +527,22 @@ def run_gui():
                                       ("Gauntlet", "gauntlet"), ("GVG", "gvg"), ("Expedition", "expedition"), ("Invasion", "invasion"))):
         ov_buttons[key] = (title, ttk.Button(btns, text=title, command=lambda k=key: open_override(k)))
         ov_buttons[key][1].grid(row=i // 5, column=2 + i % 5, padx=(0, 4), pady=1, sticky="ew")
+
+    SCOPES = ["Both heroes", "Left hero", "Right hero"]
+    scope_var = tk.StringVar(value=settings.get("ov_scope") if settings.get("ov_scope") in SCOPES else SCOPES[0])
+    scope_row = ttk.Frame(btns)                    # row 2, under the override buttons: whose settings those buttons edit
+    scope_row.grid(row=2, column=2, columnspan=5, sticky="w", pady=(3, 0))
+    ttk.Label(scope_row, text="Override settings for:").pack(side="left")
+    cb_scope = ttk.Combobox(scope_row, values=SCOPES, textvariable=scope_var, state="readonly", width=12)
+    cb_scope.pack(side="left", padx=6)
+    Tip(cb_scope, "OVERRIDES PER HERO (default: Both heroes)\n"
+                  "Definition: chooses WHOSE settings the Quest / PVP / World Boss / ... buttons edit. 'Both heroes' = one set for everyone. "
+                  "'Left hero' / 'Right hero' = a set used only while that hero (left or right portrait on the YOUR HEROES page) is playing; "
+                  "it replaces the shared set for that hero. A hero without its own set uses the shared one.\n"
+                  "Use it for: two heroes of different strength (e.g. a different Quest zone, Gauntlet tier or Invasion wave each). A dot on a "
+                  "button = this hero has its own setting on; a hollow dot = it uses the shared setting that is on.\n"
+                  "Used in: bh_gui.py (the override windows write overrides.json -> \"heroes\") and bhbot.py hero_view() / identify_hero(). "
+                  "The bot opens YOUR HEROES once at the start to see which hero is active, and again after every hero switch.")
 
     cl = ttk.Frame(frm)
     cl.grid(row=10, column=0, columnspan=4, sticky="e", pady=(4, 0))
@@ -689,13 +712,43 @@ def run_gui():
             messagebox.showerror("Cannot save", str(e))
         show_ov_state()
 
+    def scope_side():
+        """None = both heroes (the shared top-level sections), 'left' / 'right' = that hero's own sections."""
+        return {"Left hero": "left", "Right hero": "right"}.get(scope_var.get())
+
+    def scope_sections(d, create=False):
+        side = scope_side()
+        if side is None:
+            return d
+        heroes = d.get("heroes") if isinstance(d.get("heroes"), dict) else None
+        if heroes is None:
+            if not create:
+                return {}
+            heroes = d["heroes"] = {}
+        sec = heroes.get(side) if isinstance(heroes.get(side), dict) else None
+        if sec is None:
+            if not create:
+                return {}
+            sec = heroes[side] = {}
+        return sec
+
+    def section_on(sec, key):
+        on = isinstance(sec.get(key), dict) and bool(sec[key].get("on"))
+        if key in EVENT_ONLY:                                          # these only switch an event off: mark it when it is skipped
+            on = on and not sec[key].get("enabled", True)
+        return on
+
     def show_ov_state():
         d = load_ov()
+        own = scope_sections(d)
         for key, (title, button) in ov_buttons.items():
-            on = isinstance(d.get(key), dict) and bool(d[key].get("on"))
-            if key in EVENT_ONLY:                                          # these only switch an event off: mark it when it is skipped
-                on = on and not d[key].get("enabled", True)
-            button.configure(text=title + (" \u25cf" if on else ""))      # a dot marks an override that is switched on
+            if scope_side() is None:
+                mark = " \u25cf" if section_on(d, key) else ""
+            elif isinstance(own.get(key), dict):                          # this hero has its own section: a dot when that one is on
+                mark = " \u25cf" if section_on(own, key) else ""
+            else:                                                         # inherits the shared one: hollow dot when that is on
+                mark = " \u25cb" if section_on(d, key) else ""
+            button.configure(text=title + mark)
 
     def save_speed():
         try:
@@ -723,6 +776,12 @@ def run_gui():
             d["settings"]["switch_request"] = old["switch_request"]
         save_ov(d)
 
+    def on_scope(*_):
+        settings.update(ov_scope=scope_var.get())
+        save_settings(settings)
+        show_ov_state()
+    cb_scope.bind("<<ComboboxSelected>>", on_scope)
+
     stuck_var.trace_add("write", lambda *_: save_speed())
     for widget_var in (tick_var, base_var, wait_var, restart_var):
         widget_var.trace_add("write", lambda *_: root.after(800, save_speed)) if hasattr(widget_var, "trace_add") else None
@@ -737,9 +796,11 @@ def run_gui():
 
     def open_override(key):
         ov = load_ov()
-        cur = ov.get(key) if isinstance(ov.get(key), dict) else {}
+        own = scope_sections(ov)
+        cur = own.get(key) if isinstance(own.get(key), dict) else (ov.get(key) if isinstance(ov.get(key), dict) else {})    # a hero starts from the shared values
+        side = scope_side()
         win = tk.Toplevel(root)
-        win.title("Override: " + TITLES[key])
+        win.title("Override: " + TITLES[key] + ("" if side is None else " (%s hero)" % side))
         win.transient(root)
         win.resizable(False, False)
         body = ttk.Frame(win, padding=12)
@@ -847,7 +908,7 @@ def run_gui():
             ttk.Label(body, text="%s runs with the game's own settings; there is nothing to choose here yet." % TITLES[key],
                       foreground="#666", justify="left").grid(row=row[0], column=0, columnspan=3, sticky="w", pady=(0, 4))
             row[0] += 1
-        if key in ("trials", "gauntlet", "invasion") or key in EVENT_ONLY:
+        if True:                                               # every event can be skipped, e.g. one a low-level hero has not unlocked
             add_check("enabled", "Run %s (un-tick to skip it while this override is on)" % TITLES[key], True)
             if key in ("trials", "gauntlet", "invasion"):
                 ttk.Label(body, text="GVG / Expedition / Invasion share one cooldown, Trials / Gauntlet share another;\n"
@@ -878,8 +939,8 @@ def run_gui():
             d = load_ov()
             vals = collect()
             vals["on"] = bool(use.get())
-            d[key] = vals
-            legacy = d.pop("events", None)                                 # the old combined section becomes one section per event
+            scope_sections(d, True)[key] = vals
+            legacy = d.pop("events", None) if side is None else None       # the old combined section becomes one section per event
             if isinstance(legacy, dict):
                 for t, v in legacy.items():
                     if isinstance(v, dict) and t != key:
@@ -889,8 +950,27 @@ def run_gui():
                 write_log("[overrides] saved - the running bot picks it up within a second or two\n")
             win.destroy()
 
+        def use_shared():
+            d = load_ov()
+            sec = scope_sections(d)
+            sec.pop(key, None)
+            if side and isinstance(d.get("heroes"), dict) and not sec:
+                d["heroes"].pop(side, None)
+                if not d["heroes"]:
+                    d.pop("heroes", None)
+            save_ov(d)
+            win.destroy()
+
+        if side:
+            ttk.Label(body, foreground="#666", justify="left", wraplength=420,
+                      text="Only used while the %s hero is playing (the bot reads which one is active on the YOUR HEROES page). "
+                           "Switched off here = this hero uses its profile and ignores the shared setting." % side
+                      ).grid(row=row[0], column=0, columnspan=3, sticky="w", pady=(8, 0))
+            row[0] += 1
         bar = ttk.Frame(body)
         bar.grid(row=row[0], column=0, columnspan=3, sticky="e", pady=(12, 0))
+        if side:
+            ttk.Button(bar, text="Use shared setting", command=use_shared).pack(side="left", padx=4)
         ttk.Button(bar, text="Save", command=save).pack(side="left", padx=4)
         ttk.Button(bar, text="Cancel", command=win.destroy).pack(side="left")
         win.grab_set()
@@ -1237,6 +1317,8 @@ def run_gui():
     root.protocol("WM_DELETE_WINDOW", on_close)
     refresh()
     show_ov_state()
+    if not IS_WIN:
+        banner("Linux/macOS support is UNTESTED - community feedback welcome (see README.txt, 'Linux and macOS')")
     tick()
     root.mainloop()
 

@@ -1,0 +1,6 @@
+# Keep line endings right on every system: Windows scripts need CRLF, Linux/macOS scripts must be LF
+# (a CRLF .sh fails with "bash\r: No such file or directory").
+*.bat     text eol=crlf
+*.sh      text eol=lf
+*.command text eol=lf
+*.png     binary

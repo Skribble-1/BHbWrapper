@@ -43,7 +43,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent                 # this script's folder (BHPyBot): templates, out, overrides.json, bh-client scripts
 # Your account files (user-config.properties, optional readonly.<name>.user-config.properties), the generated game pages (bh-client)
-# and the bot's Chrome profile live one folder up (the main folder, next to ~start_gui.bat) when this script sits in a folder
+# and the bot's Chrome profile live one folder up (the main folder, next to start_win-gui.bat) when this script sits in a folder
 # called BHPyBot (or the old name BHbWrapper); otherwise next to the script.
 BOT_DIR = ROOT.parent if ROOT.name.lower() in ("bhpybot", "bhbwrapper") else ROOT
 TEMPLATE_DIR = ROOT / "templates"
@@ -129,12 +129,18 @@ def find_chrome(props):
                 cands.append(str(Path(os.environ[var]) / "Google/Chrome/Application/chrome.exe"))
         cands.append(shutil.which("chrome") or "")
     else:
+        # LINUX / MACOS: NOT TESTED - community help wanted (see README.txt, "Linux and macOS").
         cands += [shutil.which(n) or "" for n in ("google-chrome", "google-chrome-stable", "chrome", "chromium", "chromium-browser")]
-        cands.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+        cands += ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/opt/google/chrome/chrome",
+                  "/usr/bin/chromium", "/usr/bin/chromium-browser", "/snap/bin/chromium",
+                  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                  str(Path.home() / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+                  "/Applications/Chromium.app/Contents/MacOS/Chromium"]
     for c in cands:
         if c and Path(c).is_file():
             return c
-    raise BotExit(EXIT_NO_GAME, "Chrome not found; set external.application.chrome.path in user-config.properties")
+    raise BotExit(EXIT_NO_GAME, "Chrome not found; set external.application.chrome.path in user-config.properties "
+                                "(Linux: e.g. /usr/bin/google-chrome or /usr/bin/chromium; macOS: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome)")
 
 
 # =========================================================================== #
@@ -287,6 +293,13 @@ class Game:
                     "--window-size=820,565", "--window-position=0,0", "--app=%s" % page.as_uri(),
                     "--no-first-run", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows",
                     "--disable-background-timer-throttling"]
+            if os.name != "nt":
+                # LINUX / MACOS: NOT TESTED. Chrome refuses to start as root without --no-sandbox (containers, some servers),
+                # and a Linux box with no desktop (no DISPLAY) can only run it headless.
+                if hasattr(os, "geteuid") and os.geteuid() == 0:
+                    args.append("--no-sandbox")
+                if sys.platform != "darwin" and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+                    headless = True
             if headless:
                 args.append("--headless=new")
             kw = ({"creationflags": 0x00000008 | 0x00000200} if os.name == "nt" else {"start_new_session": True})
@@ -471,7 +484,11 @@ class Template:
 
     def find(self, frame, margin=DEFAULT_MARGIN):
         hits = self.find_all(frame, margin)
-        return hits[0] if hits else None
+        if not hits:
+            return None
+        if self.at and len(hits) > 1:               # several matches: the one at the usual spot is the right one (not the first in reading order)
+            return min(hits, key=lambda p: (p[0] - self.at[0]) ** 2 + (p[1] - self.at[1]) ** 2)
+        return hits[0]
 
     def center_of(self, pos):
         return pos[0] + self.w // 2, pos[1] + self.h // 2
@@ -729,7 +746,11 @@ class Bot:
         """The map with its menu icons. Needs at least 3 of them: the loading screen's big QUEST logo looks like one."""
         n = sum(1 for name in ("pvp", "quest", "raid", "world-boss", "gvg", "invasion", "expedition", "trials", "gauntlet", "bait")
                 if self.tpl.get("place." + name).find(frame, None))
-        return n >= 3
+        if n >= 3:
+            return True
+        if n == 2:      # a low-level hero has few icons, and a label can be hidden by a passing player / icon artwork: the bottom menu row decides
+            return sum(1 for name in ("guild", "friends", "chat", "settings") if self.tpl.get("place.menu-" + name).find(frame)) >= 3
+        return False
 
     def bounty_sign_green(self, frame):
         x, y, w, h = self.BOUNTY_SIGN
@@ -1138,8 +1159,30 @@ def gauntlet_tier_of(number):
     return None
 
 
-def apply_overrides(base, ov):
-    """Profile (from readonly.<name>.user-config.properties and the command line) + the GUI overrides -> (profile, disabled events, notes)."""
+HERO_SIDES = ("left", "right")
+PER_HERO_SECTIONS = ("quest", "pvp", "boss", "raid", "trials", "gauntlet", "gvg", "expedition", "invasion")      # not 'settings': speed etc. are global
+
+
+def hero_view(ov, hero):
+    """overrides.json -> what applies to one hero (0 = left, 1 = right, None = not known). The top-level sections are shared by both
+    heroes; a section under "heroes" -> "left"/"right" REPLACES the shared one for that hero only (even when it is switched off:
+    that hero then uses its profile)."""
+    own = (ov.get("heroes") or {}).get(HERO_SIDES[hero]) if hero in (0, 1) and isinstance(ov.get("heroes"), dict) else None
+    if not isinstance(own, dict):
+        return ov
+    merged = dict(ov)
+    for k in PER_HERO_SECTIONS:
+        if isinstance(own.get(k), dict):
+            merged[k] = own[k]
+    if isinstance(own.get("events"), dict):
+        merged["events"] = own["events"]
+    return merged
+
+
+def apply_overrides(base, ov, hero=None):
+    """Profile (from readonly.<name>.user-config.properties and the command line) + the GUI overrides -> (profile, disabled events, notes).
+    hero: 0 / 1 = the left / right hero is active (its own override sections win), None = not known (shared sections only)."""
+    ov = hero_view(ov, hero)
     p, notes, disabled = dict(base), [], set()
     def sec(name):
         d = ov.get(name)
@@ -1225,6 +1268,10 @@ def apply_overrides(base, ov):
             e = ev.get(task)
             if isinstance(e, dict) and e.get("on") and not e.get("enabled", True):
                 disabled.add(task)
+        for key, task in (("quest", "quest"), ("pvp", "pvp"), ("boss", "world-boss"), ("raid", "raid")):      # any event can be skipped (e.g. not unlocked on a low-level hero)
+            e = ov.get(key)
+            if isinstance(e, dict) and e.get("on") and not e.get("enabled", True):
+                disabled.add(task)
         if disabled:
             notes.append("switched off: " + ", ".join(sorted(disabled)))
     return p, disabled, notes
@@ -1250,6 +1297,7 @@ class Afk(Bot):
         super().__init__(game, templates, props)
         self.wanted, self.profile, self.ear, self.tick, self.retry = wanted, profile, ear, tick, retry
         self.base_profile, self.disabled, self._ov_mtime = dict(profile), set(), -1
+        self.hero_side, self._ov_hero, self._hero_id_tried = None, None, False      # which hero is active (0 left, 1 right): only known once YOUR HEROES was seen
         self._lobby, self._wb_solo = None, False
         self._tr = dict(done=False, tries=0, seen=0.0, stage="", scrolls=0, clicked=0.0, top=False, ups=0)
         self._gt = dict(done=False, tries=0, seen=0.0, stage="", scrolls=0, clicked=0.0, top=False, ups=0)
@@ -1259,6 +1307,7 @@ class Afk(Bot):
         self.activity = None              # task whose button was clicked last ('pvp' = no yellow-arrow checks while it runs)
         self._qz = dict(stage="left", n=0, steps=0, seen=0.0)
         self._was_waiting = set()
+        self._icon_miss = {}               # (hero, task) -> how many times its map icon was missing in a row
         self.tasks = [t for t in ORDER if t in wanted and TASKS[t].get("supported", True)]
         self.blocked = {}                 # group -> (until, why)
         self.cur_char, self.char_blocks = 0, {}          # alternate characters: which hero (0 = the one we started on) and the other's saved pauses
@@ -1315,11 +1364,13 @@ class Afk(Bot):
             m = OVERRIDES_FILE.stat().st_mtime
         except OSError:
             m = 0
-        if m == self._ov_mtime:
+        if m == self._ov_mtime and self._ov_hero == self.hero_side:
             return
         first = self._ov_mtime == -1
-        self._ov_mtime = m
-        self.profile, self.disabled, notes = apply_overrides(self.base_profile, load_overrides())
+        self._ov_mtime, self._ov_hero = m, self.hero_side
+        self.profile, self.disabled, notes = apply_overrides(self.base_profile, load_overrides(), self.hero_side)
+        if self.hero_side in (0, 1) and isinstance(load_overrides().get("heroes"), dict):
+            notes.insert(0, "settings of the %s hero" % HERO_SIDES[self.hero_side])
         if self.profile.get("tick"):
             self.tick = float(self.profile["tick"])
         if self.profile.get("wait_every"):
@@ -1353,6 +1404,22 @@ class Afk(Bot):
     def acted(self):
         self.idle = self.stuck = self.map_miss = self.ladder = 0
 
+    def talk_arrow(self, frame, margin=60, min_x=0):
+        """The yellow 'next' arrow of a dialogue, or None. Its template is a black-text mask, which also 'matches' dark scenes (boss rooms),
+        so a hit only counts when the pixel in its middle really is the arrow's pale yellow. The hit nearest the usual spot wins."""
+        t = self.tpl.get("globally.talkRightArrow")
+        hits = [p for p in t.find_all(frame, margin) if p[0] >= min_x]
+        if t.at:
+            hits.sort(key=lambda p: (p[0] - t.at[0]) ** 2 + (p[1] - t.at[1]) ** 2)
+        for p in hits[:400]:
+            cx, cy = t.center_of(p)
+            if not (0 <= cx < GAME_W and 0 <= cy < GAME_H):
+                continue
+            r, g, b = frame.pixel(cx, cy)
+            if r >= 200 and g >= 170 and b <= 190 and r - b >= 50:
+                return p
+        return None
+
     def small_tasks(self, frame):
         """What the original ran in the background: Auto in battles, NPC talk, news, daily rewards, 'leave dungeon?'."""
         now = time.time()
@@ -1382,7 +1449,7 @@ class Afk(Bot):
                         return True
         if due("talk", 1) and self.activity != "pvp":
             t = self.tpl.get("globally.talkRightArrow")
-            pos = None if self.tpl.get("dungeons.zones").find(frame, None) else (t.find(frame, 60) or t.find(frame, None))   # the zone map's yellow arrow looks the same; prefer the arrow at its usual spot (a grey carousel arrow can look alike)
+            pos = None if self.tpl.get("dungeons.zones").find(frame, None) else (self.talk_arrow(frame, 60) or self.talk_arrow(frame, None))   # the zone map's yellow arrow looks the same; prefer the arrow at its usual spot (a grey carousel arrow can look alike)
             if pos and (self.difficulty_screen(frame) or self.news_open(frame)):                     # NORMAL / HARD / HEROIC picker: its '>' arrows and title are not a dialogue
                 pos = None
             plate = self.dialogue_plate(frame) if pos else None           # a name plate (any enemy-tier colour) must be there too
@@ -1555,6 +1622,24 @@ class Afk(Bot):
         return (self.on_main_screen(frame) and time.time() >= self.nav_block_until
                 and not self.tpl.get("globally.auto-green").find(frame, AFK_MARGIN))
 
+    def identify_hero(self):
+        """Which hero is active (left / right on the YOUR HEROES page)? Needed only when the overrides differ per hero. Opens the page,
+        looks, closes it with ESC. Tried once per run; unknown = the shared override sections are used."""
+        self._hero_id_tried = True
+        log("Per-hero overrides: checking which hero is active (YOUR HEROES)")
+        if not self.open_heroes():
+            log("Per-hero overrides: the YOUR HEROES page did not open (no second hero?) -> the shared override settings are used")
+            return False
+        act = self.hero_active(self.game.screenshot())
+        self.game.esc(2, gap=0.8)
+        if act is None:
+            log("Per-hero overrides: could not tell which hero is active -> the shared override settings are used")
+            return False
+        self.hero_side = act
+        log("Per-hero overrides: the %s hero is active" % HERO_SIDES[act])
+        self.refresh_overrides()
+        return True
+
     def switch_character(self, why):
         """Open YOUR HEROES, pick the hero that is NOT active, CONFIRM, wait for the reload. True when the other hero is loaded."""
         log("Alternate characters (%s): opening YOUR HEROES" % why)
@@ -1600,6 +1685,9 @@ class Afk(Bot):
                 log("(waiting for the game to reload: %s)" % e)
             time.sleep(1)
         self.cur_char = 1 - self.cur_char
+        if act is not None:
+            self.hero_side = 1 - act                    # the hero we just chose: its own override settings apply from now on
+            self.refresh_overrides()
         self.activity, self.nav_block_until = None, 0.0
         self.nav_tries, self.quest_fail, self.quest_bad = {}, 0, []
         self.zone_steps, self.zone_trail, self.next_small = 0, [], {}
@@ -2576,6 +2664,7 @@ class Afk(Bot):
             t, pos = self.see(spec["place"], frame, None)       # icon anywhere on screen: new event icons can't push it out
             if not pos:
                 continue
+            self._icon_miss.pop((self.cur_char, task), None)      # the icon exists on this hero after all
             n = self.nav_tries[task] = self.nav_tries.get(task, 0) + 1
             if n > self.GIVE_UP_NAV:
                 log("%s: opened its map icon %d times but nothing happened" % (spec["label"], n - 1))
@@ -2601,21 +2690,30 @@ class Afk(Bot):
         still = self.still_for()
         if self.map_visible(frame):
             if still < 3:
+                self.say("On the map, but the screen keeps moving (other players walking?) - waiting for a calm moment", every=120)
                 return
             self.map_miss += 1
             names = ", ".join(TASKS[t]["label"] for t in ready)
-            self.say("On the map, but no icon for: %s (look %d of 3)" % (names, self.map_miss), every=20)
+            seen = [n for n in ("pvp", "quest", "raid", "world-boss", "gvg", "invasion", "expedition", "trials", "gauntlet", "bait")
+                    if self.tpl.get("place." + n).find(frame, None)]
+            self.say("On the map, but no icon for: %s (look %d of 3; icons seen: %s)" % (names, self.map_miss, ", ".join(seen) or "none"), every=20)
             if self.map_miss >= 3:
-                self.evidence(frame, "unknown", "icons_missing", "on the map but no icon for: %s" % names, 300)
+                # Other icons are there but these are not: usually an event this hero has not unlocked yet (a low-level second hero).
+                # First time 10 min (an overlay may hide it), then the longest pause allowed (--retry); one screenshot per task and hero.
+                new = [t for t in ready if (self.cur_char, t) not in self._icon_miss]
+                if new:
+                    self.evidence(frame, "unknown", "icons_missing", "on the map but no icon for: %s" % ", ".join(TASKS[t]["label"] for t in new), 300)
                 for t in ready:
-                    self.block(t, 10, "its map icon is not on screen")
-                log("Icons for %s were not found on the map (an event overlay? the screenshot, if saved, is in out/unknown)" % names)
+                    n = self._icon_miss[(self.cur_char, t)] = self._icon_miss.get((self.cur_char, t), 0) + 1
+                    self.block(t, 10 if n == 1 else 60, "its map icon is not on screen - not unlocked on this hero yet?")
+                log("No map icon for %s - probably not unlocked on this hero yet; checking again later (switch such an event off for this hero "
+                    "with its override button if you like)" % names)
                 self.map_miss = 0
             return
         ta = self.tpl.get("globally.talkRightArrow")
         # Only the right-hand arrow of a popup counts (gear / pet pages: x ~650). Never in PVP, and never the yellow turn
         # marker over a hero in a battle (it sits on the left side of the screen).
-        apos = None if self.activity == "pvp" else next((p for p in ta.find_all(frame, margin=None) if p[0] >= 600), None)
+        apos = None if self.activity == "pvp" else self.talk_arrow(frame, None, 600)
         if apos and self.news_open(frame):          # the News carousel's arrow: handled by the News popup check, not a dialogue
             apos = None
         if apos:                                    # a yellow 'next' arrow that stays for 8 s is a dialogue we did not recognise
@@ -2679,6 +2777,8 @@ class Afk(Bot):
             if time.time() - t_start >= self.LOAD_MIN and self.on_main_screen(frame):
                 break
             time.sleep(1)
+        if not self._hero_id_tried and isinstance(load_overrides().get("heroes"), dict) and load_overrides()["heroes"]:
+            self.identify_hero()
         self.collect_bounties("start")
         while True:
             time.sleep(self.tick)
@@ -2709,6 +2809,8 @@ class Afk(Bot):
             ready = [t for t in self.tasks if self.is_ready(t)]
             for t in self.tasks:                    # announce when a pause has run out
                 g = TASKS[t]["group"]
+                if t in self.disabled:              # a switched-off task is never 'ready': it must not re-arm its group's announcement
+                    continue                        # (GVG / Invasion / Expedition share one group: a skipped GVG made Invasion announce every look)
                 if t in ready and g in self._was_waiting:
                     self._was_waiting.discard(g)
                     log("%s: wait is over - checking again" % TASKS[t]["label"])
@@ -2731,7 +2833,7 @@ class Afk(Bot):
                 if self.switch_if_exhausted(frame):
                     continue
                 self.say("Waiting - " + "; ".join(left(t) for t in self.tasks), every=300)
-                time.sleep(getattr(self, "slow_wait", SLOW_WAIT))
+                time.sleep(self.tick if self._talk_box is not None else getattr(self, "slow_wait", SLOW_WAIT))      # a dialogue is open: keep clicking it at normal speed
                 continue
             # A battle (the AUTO tab is on screen) or one that is still loading (just clicked accept / fight): nothing to choose
             # here. Pale enemies and the snowy background can look like menu text, so the menu screens are not even looked at.

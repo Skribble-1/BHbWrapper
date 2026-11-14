@@ -733,6 +733,38 @@
    480
   ]
  },
+ "place.menu-chat": {
+  "at": [
+   664,
+   501
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "place.menu-friends": {
+  "at": [
+   582,
+   501
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "place.menu-guild": {
+  "at": [
+   518,
+   501
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "place.menu-settings": {
+  "at": [
+   723,
+   501
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
  "place.pvp": {
   "ink": "ffffff",
   "kind": "ink",
