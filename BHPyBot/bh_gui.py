@@ -61,9 +61,15 @@ PAUSE_PROMPT_RE = re.compile(r"press any key", re.I)  # cmd's `pause` (English W
 
 NO_SELECTION = "(none)"
 
-# Lines the "Compact log" button hides: the bot repeats them every few seconds while it just waits.
-NOISE_RE = re.compile(r"(In a battle - waiting|Screen is changing|\(still\)\s*$|still loading|Auto is OFF in this battle - turning it on in"
-                      r"|Just entered an activity|\[watch\])", re.I)
+# Troubleshooting functions: (key, title, log prefix, has an Off switch, longest interval, what it does). KEEP IN SYNC with TSHOOT in engine/config.py.
+TSHOOT = [
+    ("screen", "Screen check", "[screen]", True, 60, "Names the screen the bot sees and logs it when it changes. Saves 'unknown screen' pictures."),
+    ("battle", "Battle check", "[battle-check]", True, 60, "Compares the old battle check with the screen classifier; logs and saves a picture when they disagree."),
+    ("handler", "Event handler lines", "[handler]", True, 60, "Logs which event handled which screen (at most one line per interval)."),
+    ("health", "Chrome health", "[health]", False, 30, "Detects a crashed / hung Chrome tab, a Unity error dialog or a flat grey page, then restarts the game."),
+    ("frozen", "Frozen battle", "[frozen]", False, 30, "Detects a battle picture that has not moved for 4 minutes, then restarts the game."),
+]
+TSHOOT_DEFAULT = 3
 
 
 # --------------------------------------------------------------------------- #
@@ -425,8 +431,8 @@ def run_gui():
         bot_dir = Path(picked)
     settings["bot_dir"] = str(bot_dir)
     root.deiconify()
-    root.title("BH Bot Controller")
-    root.geometry("820x640")
+    root.title("BH Bot Controller  -  V2.0")
+    root.geometry("1000x900")
     root.minsize(640, 480)
 
     events = queue.Queue()
@@ -438,7 +444,6 @@ def run_gui():
     kill_game = tk.BooleanVar(value=settings.get("kill_game", False))
     status = tk.StringVar(value="Idle")
     esc_count = tk.StringVar(value=str(settings.get("esc_count", 4)))
-    compact = tk.BooleanVar(value=bool(settings.get("compact_log", False)))
     clean_on = tk.BooleanVar(value=bool(settings.get("clean_unknown", True)))
     alt_var = tk.BooleanVar(value=bool(settings.get("alternate_chars", False)))
     always_var = tk.BooleanVar(value=bool(settings.get("always_restart", True)))
@@ -474,8 +479,7 @@ def run_gui():
     ttk.Checkbutton(opts, text="Force Stop also closes the game window", variable=kill_game).pack(side="left", padx=14)
     ttk.Label(opts, text="ESC presses before 2nd script:").pack(side="left")
     ttk.Spinbox(opts, from_=0, to=10, width=3, textvariable=esc_count).pack(side="left", padx=4)
-    ttk.Checkbutton(opts, text="Compact log", variable=compact, style="Toolbutton",
-                    command=lambda: settings.update(compact_log=bool(compact.get())) or save_settings(settings)).pack(side="right", padx=(14, 0))
+    ttk.Button(opts, text="Troubleshooting", command=lambda: open_troubleshooting()).pack(side="right", padx=(14, 0))
 
     btns = ttk.Frame(frm)
     btns.grid(row=3, column=0, columnspan=4, sticky="ew")
@@ -489,7 +493,10 @@ def run_gui():
     b_stop = ttk.Button(lrow, text="Force Stop", command=lambda: force_stop(), state="disabled")
     for b in (b_start, b_pause, b_stop):
         b.pack(side="left", padx=(0, 6))
-    ttk.Label(btns, textvariable=status, font=("TkDefaultFont", 10, "bold")).grid(row=0, column=7, rowspan=2, sticky="e")
+    stat_box = ttk.Frame(btns)
+    stat_box.grid(row=0, column=7, rowspan=2, sticky="e")
+    ttk.Button(stat_box, text="Settings", command=lambda: open_settings()).pack(anchor="e", pady=(0, 6))
+    ttk.Label(stat_box, textvariable=status, font=("TkDefaultFont", 10, "bold")).pack(anchor="e")
     ck_alt = ttk.Checkbutton(alt_row, text="Alternate characters...", variable=alt_var, command=lambda: save_speed())
     ck_alt.pack(side="left")
     ck_always = ttk.Checkbutton(alt_row, text="Always Restart", variable=always_var, command=lambda: save_speed())
@@ -521,6 +528,20 @@ def run_gui():
         bh_setup.open_setup(root, bot_dir)
 
     ttk.Button(lrow, text="Initial Setup Help", command=open_account_setup).pack(side="left", padx=(6, 0))
+
+    def make_profile_file():
+        """Write readonly.<account>.user-config.properties (every setting, with defaults) - never over an existing one without asking."""
+        cmd = [sys.executable, str(APP_DIR / "bhbot.py"), "profile"]            # for the first account in user-config.properties
+        r = subprocess.run(cmd, cwd=str(APP_DIR), capture_output=True, text=True)
+        out = (r.stdout + r.stderr).strip()
+        if r.returncode and "already exists" in out:
+            if not messagebox.askyesno("Profile file exists", out.splitlines()[-1] + "\n\nReplace it? (the old one is kept as .bak)"):
+                return
+            r = subprocess.run(cmd + ["--force"], cwd=str(APP_DIR), capture_output=True, text=True)
+            out = (r.stdout + r.stderr).strip()
+        messagebox.showinfo("Profile file", out.splitlines()[-1] if out else "done")
+
+    ttk.Button(lrow, text="Create Profile File", command=make_profile_file).pack(side="left", padx=(6, 0))
     ov_buttons = {}
     ttk.Separator(btns, orient="vertical").grid(row=0, column=1, rowspan=2, sticky="ns", padx=(10, 10))
     for i, (title, key) in enumerate((("Quest", "quest"), ("PVP", "pvp"), ("World Boss", "boss"), ("Raid", "raid"), ("Trials", "trials"),
@@ -544,8 +565,23 @@ def run_gui():
                   "Used in: bh_gui.py (the override windows write overrides.json -> \"heroes\") and bhbot.py hero_view() / identify_hero(). "
                   "The bot opens YOUR HEROES once at the start to see which hero is active, and again after every hero switch.")
 
-    cl = ttk.Frame(frm)
-    cl.grid(row=10, column=0, columnspan=4, sticky="e", pady=(4, 0))
+    # ---- the "Settings" window: built once, hidden; its widgets keep working while it is closed ---- #
+    sw = tk.Toplevel(root)
+    sw.title("Settings")
+    sw.withdraw()
+    sw.transient(root)
+    sw.resizable(False, False)
+    sw.protocol("WM_DELETE_WINDOW", sw.withdraw)
+    setbody = ttk.Frame(sw, padding=12)
+    setbody.pack(fill="both", expand=True)
+
+    def open_settings():
+        sw.deiconify()
+        sw.lift()
+        sw.geometry("+%d+%d" % (root.winfo_rootx() + 80, root.winfo_rooty() + 120))
+
+    cl = ttk.Frame(setbody)
+    cl.pack(anchor="w", pady=(8, 0))
     ck_cl = ttk.Checkbutton(cl, text="Clear BHPyBot/out/unknown older than", variable=clean_on, command=lambda: save_clean())
     ck_cl.pack(side="left")
     sp_cl = ttk.Spinbox(cl, from_=1, to=365, width=4, textvariable=clean_days, command=lambda: save_clean())
@@ -581,13 +617,11 @@ def run_gui():
     pw.add(preview, weight=1)
     pw.add(log, weight=4)
 
-    speed = ttk.Frame(frm)
-    speed.grid(row=8, column=0, columnspan=4, sticky="ew", pady=(6, 0))
-    speed.columnconfigure((0, 1, 2), weight=1, uniform="speed")
+    speed = ttk.Frame(setbody)
+    speed.pack(anchor="w", fill="x")
     sl, sm, sr = ttk.Frame(speed), ttk.Frame(speed), ttk.Frame(speed)
-    sl.grid(row=0, column=0, sticky="w")
-    sm.grid(row=0, column=1)
-    sr.grid(row=0, column=2, sticky="e")
+    for f_ in (sl, sm, sr):
+        f_.pack(anchor="w", pady=2)
     lbl = ttk.Label(sl, text="Base Check Interval")
     lbl.pack(side="left")
     base_var = tk.StringVar(value=str(settings.get("base_tick", 15)))
@@ -623,11 +657,11 @@ def run_gui():
                "Designed for: keeping the log readable. The same 'waiting / screen is changing' line is printed at most this often.\n"
                "Used in: bhbot.py say() - it only changes what is printed, never what the bot does.")
 
-    rs = ttk.Frame(frm)
-    rs.grid(row=9, column=0, columnspan=4, sticky="ew", pady=(4, 0))
+    rs = ttk.Frame(setbody)
+    rs.pack(anchor="w", fill="x", pady=(4, 0))
     rl, rr = ttk.Frame(rs), ttk.Frame(rs)
-    rl.pack(side="left")
-    rr.pack(side="right")
+    rl.pack(anchor="w", pady=2)
+    rr.pack(anchor="w", pady=2)
     l_rs = ttk.Label(rl, text="Full restart every")
     l_rs.pack(side="left")
     restart_var = tk.StringVar(value=str(settings.get("restart_min", 0)))
@@ -651,8 +685,8 @@ def run_gui():
                "Used in: bhbot.py note_unknown() counts consecutive 'unknown' screenshots that look the same; at 3 it ends "
                "with exit code 7 (restart) or 8 (shut down). bh_gui.py then restarts the game + script(s), or closes the game.")
 
-    mt = ttk.Frame(frm)
-    mt.grid(row=10, column=0, columnspan=4, sticky="w", pady=(4, 0))
+    mt = ttk.Frame(setbody)
+    mt.pack(anchor="w", pady=(4, 0))
     l_mt = ttk.Label(mt, text="If the game is down for maintenance: close it and start again after")
     l_mt.pack(side="left")
     maint_var = tk.StringVar(value=str(settings.get("maintenance_min", 60)))
@@ -664,6 +698,10 @@ def run_gui():
                "Used in: bhbot.py maintenance() spots the maintenance message and exits with code 9; bh_gui.py then closes the "
                "game and starts the script(s) again after this many minutes.")
     ttk.Label(mt, text="min").pack(side="left")
+    for f_, py_ in ((speed, 2), (rs, 4), (mt, 4), (cl, 8)):         # pack order = top to bottom in the Settings window
+        f_.pack_forget()
+        f_.pack(anchor="w", pady=(py_, 0))
+    ttk.Button(setbody, text="Close", command=sw.withdraw).pack(anchor="e", pady=(12, 0))
 
     RESTART_REASONS = {1: "the bot hit an error", 2: "the bot is stuck", 3: "the game screen was not found", 4: "disconnected",
                        5: "a direct message is open", 6: "the game was not found", 8: "stuck screen"}
@@ -786,7 +824,7 @@ def run_gui():
     for widget_var in (tick_var, base_var, wait_var, restart_var):
         widget_var.trace_add("write", lambda *_: root.after(800, save_speed)) if hasattr(widget_var, "trace_add") else None
 
-    EVENT_ONLY = ("gvg", "expedition")                                    # overrides that hold nothing but 'run it / skip it'
+    EVENT_ONLY = ()                                    # overrides that hold nothing but 'run it / skip it'
     TITLES = {"quest": "Quest", "pvp": "PVP", "boss": "World Boss", "raid": "Raid", "trials": "Trials", "gauntlet": "Gauntlet",
               "gvg": "GVG", "expedition": "Expedition", "invasion": "Invasion"}
     DIFFS = ["Normal", "Hard", "Heroic"]
@@ -820,6 +858,29 @@ def run_gui():
             fields[name] = ("int", v)
             row[0] += 1
 
+        def add_tier_note():
+            """Live note under the Tier box: tiers 1-4 are single coloured rows (white / green / blue / red) - drops do not apply to them."""
+            names = {1: "white", 2: "green", 3: "blue", 4: "red"}
+            note = tk.StringVar()
+
+            def upd(*_):
+                try:
+                    t = int(fields["tier"][1].get() or 0)
+                except ValueError:
+                    t = 0
+                if t in names:
+                    note.set("Tier %d = the %s row (one row only: 'Gear drops' is ignored). A hero only sees tiers up to its own: "
+                             "if this tier is not in the list, the highest listed tier is used." % (t, names[t]))
+                elif t:
+                    note.set("Tier %d: pick the light-blue (Set + Mythic) or yellow (Legendary) row with 'Gear drops'. If the hero has not "
+                             "reached this tier yet, the highest tier it can see is used." % t)
+                else:
+                    note.set("")
+            fields["tier"][1].trace_add("write", upd)
+            ttk.Label(body, textvariable=note, foreground="#666", justify="left", wraplength=640).grid(row=row[0], column=0, columnspan=3, sticky="w")
+            row[0] += 1
+            upd()
+
         def add_diff(name, label="Difficulty:", allow_profile=True):
             opts = (["(profile)"] if allow_profile else []) + DIFFS
             m = int(cur.get(name, 0) or 0)
@@ -846,8 +907,12 @@ def run_gui():
             add_spin("zone", "Zone:", 0, 99, 0, "0 = automatic (most recent beaten level)")
             add_spin("dungeon", "Dungeon in that zone:", 0, 12, 0, "0 = automatic; counted left to right on the map")
             add_diff("mode", "Difficulty:")
+            add_check("special", "Play the zone's SPECIAL dungeon first (only one you have beaten; needs 'Use these settings' - ticked for you)", False)
+            fields["special"][1].trace_add("write", lambda *a: use.set(True) if fields["special"][1].get() else None)
         elif key == "pvp":
             add_spin("target", "Opponent (1 = top Fight button):", 0, 5, 0, "0 = profile / default")
+        elif key == "gvg":
+            add_spin("target", "Opponent (1 = top Fight button):", 0, 4, 0, "0 = profile / default (same list and rows as PVP)")
         elif key == "boss":
             names = [b[1] for b in BOSSES]
             cur_name = next((b[1] for b in BOSSES if b[0] == cur.get("name")), names[5])
@@ -878,7 +943,9 @@ def run_gui():
             add_spin("level", "Raid number (1 = first raid):", 0, 40, 0, "0 = profile")
             add_diff("mode", "Difficulty:")
         elif key == "trials":
+            add_spin("number", "Difficulty number:", 0, 99999, 0, "0 = use the tier below; otherwise its tier / drop type is looked up")
             add_spin("tier", "Tier:", 0, 40, 15, "0 = leave the difficulty as the game has it")
+            add_tier_note()
             add_choice("drops", "Gear drops:", [("set", "Set + Mythic (light blue)"), ("legendary", "Legendary (yellow)")], cur.get("drops", "set"))
             add_choice("pick", "Value inside that range:", [("highest", "Highest (hardest)"), ("lowest", "Lowest (easiest)")], cur.get("pick", "highest"))
             ttk.Label(body, text="The bot opens the DIFFICULTY list on the Trials page, scrolls to the tier you chose, picks that\n"
@@ -889,6 +956,7 @@ def run_gui():
         elif key == "gauntlet":
             add_spin("number", "Difficulty number:", 0, 30000, 0, "0 = use the tier below; otherwise its tier / drop type is looked up")
             add_spin("tier", "Tier:", 0, 21, 15, "0 = leave the difficulty as the game has it")
+            add_tier_note()
             add_choice("drops", "Gear drops:", [("set", "Set (light blue)"), ("legendary", "Legendary (yellow)")], cur.get("drops", "set"))
             add_choice("pick", "Value inside that range:", [("highest", "Highest (hardest)"), ("lowest", "Lowest (easiest)")], cur.get("pick", "highest"))
             ttk.Label(body, text="A difficulty number is matched against the Gauntlet table (tier 1 = 1-9 ... tier 21 = 15519-25001) to\n"
@@ -904,13 +972,36 @@ def run_gui():
                                  "is not in the list (too high, too low, unreadable) it plays the top wave instead.",
                       foreground="#666", justify="left").grid(row=row[0], column=0, columnspan=3, sticky="w", pady=(6, 0))
             row[0] += 1
+        elif key == "expedition":
+            PORTALS = [("", "Any portal", "the first one found (default; also used when the chosen portal is not unlocked)"),
+                       ("googarum", "Googarum's Portal", "Hallowed Dimension: 1st from the left"),
+                       ("twimbo", "Twimbo's Portal", "Hallowed Dimension: 2nd from the left"),
+                       ("svord", "Svord's Portal", "Hallowed Dimension: 3rd from the left"),
+                       ("x5", "X5-T34M's Portal", "Hallowed Dimension: 4th from the left")]
+            pv = tk.StringVar(value=str(cur.get("portal", "") or ""))
+            ttk.Label(body, text="Portal to enter:").grid(row=row[0], column=0, sticky="nw", pady=2)
+            tbl = ttk.Frame(body)
+            tbl.grid(row=row[0], column=1, columnspan=2, sticky="w", padx=6)
+            for r, (val, name, note) in enumerate(PORTALS):
+                ttk.Radiobutton(tbl, text=name, value=val, variable=pv).grid(row=r, column=0, sticky="w")
+                ttk.Label(tbl, text=note, foreground="#666").grid(row=r, column=1, sticky="w", padx=8)
+            fields["portal"] = ("portal", pv)
+            row[0] += 1
+            add_spin("difficulty", "Difficulty:", 0, 9999999, 0, "0 = leave as the game has it; any number the list holds (3-7 digits)")
+            ttk.Label(body, text="The bot opens the dimension map, enters the portal you chose (the portal page's title is read to make sure;\n"
+                                 "if it is not there, or you chose 'Any', it takes the next portal it finds). Then, if a difficulty is set, it opens\n"
+                                 "the DIFFICULTY list, scrolls to the top, reads the numbers (the step between rows and the wheel speed\n"
+                                 "are measured, so 5, 6 and 7-digit lists work too) and clicks the one you chose. If that difficulty is\n"
+                                 "not in the list it takes the top one.",
+                      foreground="#666", justify="left").grid(row=row[0], column=0, columnspan=3, sticky="w", pady=(6, 0))
+            row[0] += 1
         elif key in EVENT_ONLY:
             ttk.Label(body, text="%s runs with the game's own settings; there is nothing to choose here yet." % TITLES[key],
                       foreground="#666", justify="left").grid(row=row[0], column=0, columnspan=3, sticky="w", pady=(0, 4))
             row[0] += 1
         if True:                                               # every event can be skipped, e.g. one a low-level hero has not unlocked
             add_check("enabled", "Run %s (un-tick to skip it while this override is on)" % TITLES[key], True)
-            if key in ("trials", "gauntlet", "invasion"):
+            if key in ("trials", "gauntlet", "invasion", "expedition"):
                 ttk.Label(body, text="GVG / Expedition / Invasion share one cooldown, Trials / Gauntlet share another;\n"
                                      "only the one currently in the slot is ever run.", foreground="#666", justify="left"
                           ).grid(row=row[0], column=0, columnspan=3, sticky="w", pady=(2, 0))
@@ -928,6 +1019,8 @@ def run_gui():
                     out[name] = DIFFS.index(v.get()) + 1 if v.get() in DIFFS else 0
                 elif kind == "boss":
                     out[name] = next((b[0] for b in BOSSES if b[1] == v.get()), "")
+                elif kind == "portal":
+                    out[name] = v.get()
                 elif kind == "choice":
                     var, options = v
                     out[name] = next((val for val, text in options if text == var.get()), options[0][0])
@@ -940,9 +1033,9 @@ def run_gui():
             vals = collect()
             vals["on"] = bool(use.get())
             scope_sections(d, True)[key] = vals
-            legacy = d.pop("events", None) if side is None else None       # the old combined section becomes one section per event
-            if isinstance(legacy, dict):
-                for t, v in legacy.items():
+            old_events = d.pop("events", None) if side is None else None       # the old combined section becomes one section per event
+            if isinstance(old_events, dict):
+                for t, v in old_events.items():
                     if isinstance(v, dict) and t != key:
                         d[t] = dict(d.get(t) if isinstance(d.get(t), dict) else {}, **{"enabled": v.get("enabled", True)}, on=bool(v.get("on")) or bool(d.get(t, {}).get("on")))
             save_ov(d)
@@ -985,22 +1078,86 @@ def run_gui():
 
     pending = {"text": "", "at": 0.0, "last": ""}
 
+    hidden = {"prefixes": ()}
+
+    def load_hidden():
+        t = load_ov().get("troubleshooting")
+        t = t if isinstance(t, dict) else {}
+        hidden["prefixes"] = tuple(pre for key, _t, pre, _o, _m, _w in TSHOOT if isinstance(t.get(key), dict) and t[key].get("hide"))
+
     def show_log(text):
-        """Normal mode: everything. Compact mode: only whole lines that are not repetitive waiting messages."""
-        if not compact.get():
+        """Whole lines that belong to a Troubleshooting function with Hide ticked are dropped; everything else is shown as it comes."""
+        if not hidden["prefixes"]:
             if pending["text"]:
                 write_log(pending["text"])
                 pending["text"] = ""
             write_log(text)
             return
-        data = pending["text"] + text
-        lines = data.split("\n")
-        pending["text"], pending["at"] = lines.pop(), time.time()       # a last piece without newline waits for its end
+        lines = (pending["text"] + text).split("\n")
+        pending["text"] = lines.pop()                                   # a last piece without newline waits for its end
         for ln in lines:
-            if NOISE_RE.search(ln) or ln.strip() == pending["last"]:
-                continue
-            pending["last"] = ln.strip()
-            write_log(ln + "\n")
+            if not any(pre in ln for pre in hidden["prefixes"]):
+                write_log(ln + "\n")
+
+    load_hidden()
+
+    def open_troubleshooting():
+        t = load_ov().get("troubleshooting")
+        t = t if isinstance(t, dict) else {}
+        win = tk.Toplevel(root)
+        win.title("Troubleshooting")
+        win.transient(root)
+        win.resizable(False, False)
+        body = ttk.Frame(win, padding=12)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text="Functions WITHOUT an Off switch are required to operate the bot efficiently:\nthey are what restarts the game when it crashes or hangs.",
+                 background="#fff3a0", foreground="#5c4600", relief="solid", borderwidth=1, padx=8, pady=6, justify="left").grid(row=0, column=0, columnspan=5, sticky="ew", pady=(0, 10))
+        for c, h in enumerate(("Function", "Every (s)", "Hide in log", "Off")):
+            ttk.Label(body, text=h, font=("TkDefaultFont", 9, "bold")).grid(row=1, column=c, sticky="w", padx=6)
+        vars_ = {}
+        for i, (key, title, pre, optional, longest, what) in enumerate(TSHOOT, start=2):
+            cur = t.get(key) if isinstance(t.get(key), dict) else {}
+            lab = ttk.Label(body, text="%s  %s" % (title, pre))
+            lab.grid(row=i, column=0, sticky="w", padx=6, pady=3)
+            Tip(lab, what)
+            ev = tk.StringVar(value=str(cur.get("every", TSHOOT_DEFAULT)))
+            ttk.Spinbox(body, from_=1, to=longest, width=5, textvariable=ev).grid(row=i, column=1, sticky="w", padx=6)
+            hv = tk.BooleanVar(value=bool(cur.get("hide")))
+            ttk.Checkbutton(body, variable=hv).grid(row=i, column=2, padx=6)
+            ov_ = tk.BooleanVar(value=bool(cur.get("off")) and optional)
+            if optional:
+                ttk.Checkbutton(body, variable=ov_).grid(row=i, column=3, padx=6)
+            else:
+                ttk.Label(body, text="required", foreground="#8a6d00").grid(row=i, column=3, padx=6)
+            vars_[key] = (ev, hv, ov_, optional, longest)
+        ttk.Label(body, text="Every = seconds between runs (1 - 60, Chrome health / Frozen battle 1 - 30; default %d). Hide only removes the lines from this window." % TSHOOT_DEFAULT,
+                  foreground="#555").grid(row=len(TSHOOT) + 2, column=0, columnspan=5, sticky="w", pady=(8, 0))
+
+        def apply(close):
+            d = load_ov()
+            out = {}
+            for key, (ev, hv, ov_, optional, longest) in vars_.items():
+                try:
+                    every = min(max(float(ev.get()), 1.0), float(longest))
+                except ValueError:
+                    every = float(TSHOOT_DEFAULT)
+                out[key] = {"every": every, "hide": bool(hv.get()), "off": bool(ov_.get()) and optional}
+            d["troubleshooting"] = out
+            save_ov(d)
+            load_hidden()
+            if close:
+                win.destroy()
+
+        def reset():
+            for ev, hv, ov_, _o, _l in vars_.values():
+                ev.set(str(TSHOOT_DEFAULT))
+                hv.set(False)
+                ov_.set(False)
+        bb = ttk.Frame(body)
+        bb.grid(row=len(TSHOOT) + 3, column=0, columnspan=5, sticky="e", pady=(10, 0))
+        ttk.Button(bb, text="Defaults", command=reset).pack(side="left", padx=4)
+        ttk.Button(bb, text="Apply", command=lambda: apply(False)).pack(side="left", padx=4)
+        ttk.Button(bb, text="OK", command=lambda: apply(True)).pack(side="left", padx=4)
 
     def banner(msg):
         write_log("\n=== %s  [%s] ===\n" % (msg, time.strftime("%H:%M:%S")))
@@ -1208,7 +1365,15 @@ def run_gui():
                         state["restart_pending"] = True
                         kill_chrome()
                         root.after(5000, begin_again)
-                    elif not user_stopped and always_var.get() and not ok and last_exit not in (7, 9, 10):
+                    elif not user_stopped and last_exit == 11:
+                        nxt = state["queue_next"]
+                        state["queue_next"] = None
+                        banner("SCRIPT NOT AVAILABLE on this hero (e.g. fishing not unlocked) - no restart" + (", checking the next script" if nxt else ""))
+                        if nxt:
+                            chain_to(nxt)                                   # the 2nd script gets its chance, whatever 'only if the 1st succeeded' says
+                            continue
+                        status.set("Nothing to run (script not available on this hero)")
+                    elif not user_stopped and always_var.get() and not ok and last_exit not in (7, 9, 10, 11):
                         delay, n_recent, reason = restart_plan(last_exit)
                         banner("ALWAYS RESTART: %s - new game window in %d s (restart %d in the last 30 min)" % (reason, delay, n_recent + 1))
                         status.set("%s - restarting in %d s..." % (reason.capitalize(), delay))

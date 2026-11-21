@@ -134,6 +134,14 @@
   "ink": "000000",
   "kind": "ink"
  },
+ "dungeons.bonuses": {
+  "at": [
+   342,
+   212
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
  "dungeons.boss": {
   "ink": "6066ad",
   "kind": "ink"
@@ -297,6 +305,46 @@
   "at": [
    521,
    269
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.portal-googarum": {
+  "at": [
+   302,
+   96
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.portal-svord": {
+  "at": [
+   302,
+   96
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.portal-twimbo": {
+  "at": [
+   302,
+   96
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.portal-x5": {
+  "at": [
+   302,
+   96
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "expedition.title": {
+  "at": [
+   303,
+   98
   ],
   "ink": "ffffff",
   "kind": "ink"
@@ -549,6 +597,14 @@
   "ink": "ffffff",
   "kind": "ink"
  },
+ "gvg.guild-confirm": {
+  "at": [
+   282,
+   202
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
  "gvg.play": {
   "at": [
    521,
@@ -613,6 +669,14 @@
   "at": [
    387,
    468
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "loading.title": {
+  "at": [
+   326,
+   228
   ],
   "ink": "ffffff",
   "kind": "ink"
@@ -814,6 +878,70 @@
    110,
    340
   ]
+ },
+ "popup.bounties-title": {
+  "at": [
+   318,
+   66
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.chat-title": {
+  "at": [
+   357,
+   60
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.player-duel": {
+  "at": [
+   545,
+   457
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.player-ignore": {
+  "at": [
+   531,
+   329
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.summon-title": {
+  "at": [
+   341,
+   115
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.tier-title": {
+  "at": [
+   360,
+   70
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.tos-decline": {
+  "at": [
+   430,
+   437
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "popup.tos-title": {
+  "at": [
+   235,
+   81
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
  },
  "pvp-arena.accept": {
   "at": [
@@ -1135,6 +1263,14 @@
   "at": [
    285,
    231
+  ],
+  "ink": "ffffff",
+  "kind": "ink"
+ },
+ "world-boss.private": {
+  "at": [
+   519,
+   458
   ],
   "ink": "ffffff",
   "kind": "ink"
