@@ -1,7 +1,8 @@
 # BHbWrapper - Bit Heroes bot, V2.0
 
 A Windows window ("BH Bot Controller") that plays the browser version of **Bit Heroes** for you, around the clock. It watches the game
-through screenshots. It does not touch your mouse or keyboard and does not care about window position or display scaling.
+through screenshots. It does not touch your mouse or keyboard and does not care about window position.
+- Screen Resolution MUST be 100% (Right click desktop - display settings ...)
 
 **What it does**
 - Runs the AFK chain: Quest, PVP, World Boss, Raid, Trials, Gauntlet, GVG, Expedition, Invasion, plus fishing and bounties.
@@ -21,6 +22,7 @@ are included but untested.
 - double-click `start_win-gui.bat` (for windows users)
     - (If it installs python or updates packages the first time, you'll need to run `start_win-gui.bat` again) 
 - Then follow the full instructions here. [`BHPyBot/README.txt`](BHPyBot/README.txt).
+- Only Python 3.12 was tested, if you have another version, you may need to remove it, otherwise ask the internet for other workarounds / methods.
 
 **Credit and license:** the idea comes from the free Bit Heroes bot by 9-9-9-9 (https://github.com/9-9-9-9/Bit-Heroes-bot). GPL-3.0, see `LICENSE`.
 
