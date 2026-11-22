@@ -48,5 +48,5 @@ if [ ! -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ] && [ 
     sleep 4
 fi
 
-"$VPY" BHPyBot/bh_gui.py
+"$VPY" BHPyBot/bh_gui.py "$@"
 echo; read -r -p "The window was closed. Press Enter to close this Terminal window..." _

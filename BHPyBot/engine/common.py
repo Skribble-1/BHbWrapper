@@ -4,7 +4,7 @@ bhbot - Bit Heroes bot (V2.0: engine/ package, one pip dependency: opencv-python
 
 It starts Chrome with the game page, attaches through Chrome's built-in DevTools port and then
 works purely on screenshots + synthetic clicks/keys sent to the page. It does NOT use your real
-mouse/keyboard, and it does not care where the window is or what the Windows display scaling is.
+mouse/keyboard, and it does not care where the window is. Chrome is started with --force-device-scale-factor=1, so the Windows display scaling does not change the pictures.
 
 Commands                                   (run `python bhbot.py <command> -h` for options)
   fish N            fish N times (needs the fishing scene open, Start button visible)

@@ -61,4 +61,4 @@ if [ "$OS" != "Darwin" ] && [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
     exit 1
 fi
 
-exec "$VPY" BHPyBot/bh_gui.py
+exec "$VPY" BHPyBot/bh_gui.py "$@"

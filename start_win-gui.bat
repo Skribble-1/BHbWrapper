@@ -70,12 +70,12 @@ if not defined CHROME (
     echo ^(or set external.application.chrome.path in user-config.properties^)
     timeout /t 6 >nul
 )
-
-start "" %PYW% bh_gui.py
+:: --- %* passes command line args to the python script (intent is for --start [Task Scheduler] to auto start when windows reboots)
+start "" %PYW% bh_gui.py %*
 exit /b 0
 
 
-:: ---------------------------------------------------------------- helpers
+:: --- helpers
 :findpython
 set "PY=" & set "PYW="
 :: the py launcher first, then python (the Microsoft Store stub fails the test below, so it is skipped)

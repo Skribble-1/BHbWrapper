@@ -152,6 +152,21 @@ Buttons and boxes in the window:
     (Hover over any setting in the window for what it does and where it is used.)
 
 ------------------------------------------------------------------------------
+  NEAR FULL AUTOMATION  (start the bot by itself when you log on to Windows)
+------------------------------------------------------------------------------
+  start_win-gui.bat --start   opens the window and presses Start for you after 5 seconds, with the script(s) and settings you used last time. To run it automatically with Windows Task Scheduler:
+    1. Start menu > "Task Scheduler" > "Create Basic Task..."
+    2. Give it a name. 
+    3. Set the Trigger: "When I log on".
+    4. Set the Action: "Start a program".  
+        - Program/script:   "C:\<Your Directory>\BHbWrapper\start_win-gui.bat"   (keep the quotes)
+        - Add arguments:  --start        
+    Note for Linux / macOS: 
+        - Your start files accept --start too (use your own scheduler, e.g. cron @reboot / launchd)... untested.
+    IMPORTANT NOTE FOR ALL:
+        - Do not set this up first, make sure the bot runs without issue before setting up these auto runs.
+
+------------------------------------------------------------------------------
   SCREEN CHECK  (what the "[screen]" log lines mean)
 ------------------------------------------------------------------------------
   The bot asks a "which screen is this?" function (screens.py) every few seconds (Troubleshooting menu, default 3) and writes a

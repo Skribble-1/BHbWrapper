@@ -174,6 +174,7 @@ class Game:
             user_dir = user_dir if user_dir.name == "chrome-user-dir" else user_dir / "chrome-user-dir"
             args = [find_chrome(props), "--user-data-dir=%s" % user_dir, "--remote-debugging-port=%d" % self.port,
                     "--window-size=820,565", "--window-position=0,0", "--app=%s" % page.as_uri(),
+                    "--force-device-scale-factor=1",         # the window is 820x565 REAL pixels whatever the Windows display scaling (125 / 150 % ...)
                     "--no-first-run", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows",
                     "--disable-background-timer-throttling"]
             if os.name != "nt":
@@ -212,6 +213,7 @@ class Game:
         except Exception:
             pass
         self.focus()
+        self.check_view()
 
     def focus(self):
         try:
@@ -253,12 +255,27 @@ class Game:
             except OSError:
                 pass
 
+    def check_view(self):
+        """Log how big the game window really is. The pictures are only recognised pixel for pixel, so a window smaller than the game
+        (Windows display scaling above 100 % with an old window) shows as 'still loading' while the game is up."""
+        try:
+            w = self.ws.call("Browser.getWindowForTarget")
+            b = w.get("bounds", {})
+            log("[display] game window %sx%s, game picture %dx%d (Chrome flag --force-device-scale-factor=1)" % (b.get("width"), b.get("height"), GAME_W, GAME_H))
+            if b.get("width") and (b["width"] < GAME_W or b.get("height", GAME_H) < GAME_H):
+                log("[display] WARNING: the window is smaller than the game. Close the game window and start again (the bot opens a new one at the right size).")
+        except Exception:
+            pass
+
     # ---- eyes --------------------------------------------------------------- #
     def screenshot(self):
         r = self.ws.call("Page.captureScreenshot", format="png", optimizeForSpeed=True,
                          clip={"x": 0, "y": 0, "width": GAME_W, "height": GAME_H, "scale": 1})
         img = cv2.imdecode(np.frombuffer(base64.b64decode(r["data"]), np.uint8), cv2.IMREAD_COLOR)
         if img.shape[:2] != (GAME_H, GAME_W):
+            if not getattr(self, "_size_warned", False):
+                self._size_warned = True
+                log("[display] WARNING: the screenshot is %dx%d, not %dx%d: stretched pictures are not recognised (display scaling?)" % (img.shape[1], img.shape[0], GAME_W, GAME_H))
             img = cv2.resize(img, (GAME_W, GAME_H), interpolation=cv2.INTER_NEAREST)
         from engine.vision import Frame                       # (vision.py comes after this file: imported here, when first needed)
         return Frame(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))

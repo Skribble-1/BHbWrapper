@@ -13,6 +13,7 @@ The bot is rebuilt around one question, "which screen is this?". Everything belo
 - **GVG** is back, including the weekly "You cannot leave or be removed from your guild" popup; GVG owns the shared "Select opponent" list while a GVG run is on.
 - Black screens between scenes are recognised (no more "unknown screen" pictures); Fish.bat closes the News popup; Quest zone loops are detected and closed; calm World Boss lobbies are no longer saved as unknown.
 - **Evidence pictures:** unknown screens are saved (annotated + `_matches.txt`) after 10 s of standing still, with a re-check so one-frame flickers are dropped.
+- **`start_win-gui.bat --start`** (also `start_lin-gui.sh` / `start_mac-gui.command`): Running in a CLI with the "--start" option opens the controller and then presses Start by itself after 5 s with the saved script choice and settings. README has the Task Scheduler recipe ("When I log on") for near full automation.
 
 **Code**
 - `bhbot.py` is now a small launcher; the bot lives in `BHPyBot/engine/` (common, game, vision, bot, config, afk, commands, screens, handlers, picker).

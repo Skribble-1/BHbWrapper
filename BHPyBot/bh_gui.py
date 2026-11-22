@@ -1485,6 +1485,18 @@ def run_gui():
     if not IS_WIN:
         banner("Linux/macOS support is UNTESTED - community feedback welcome (see README.txt, 'Linux and macOS')")
     tick()
+    if "--start" in sys.argv[1:]:                        # e.g. a Task Scheduler task: [ "C:\<directory>\start_win-gui.bat" --start ]
+        def auto_start():
+            run = state["run"]
+            if run and run.alive:
+                return
+            if not primary.get():
+                write_log("[Auto-start] --start was given but no script is selected: pick one and press Start once.\n")
+                return
+            write_log("[Auto-start] --start was given: pressing Start now (script: %s)\n" % primary.get())
+            start()
+        write_log("[Auto-start] --start was given: pressing Start in 5 s\n")
+        root.after(5000, auto_start)
     root.mainloop()
 
 

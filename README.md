@@ -1,8 +1,6 @@
 # BHbWrapper - Bit Heroes bot, V2.0
 
-A Windows window ("BH Bot Controller") that plays the browser version of **Bit Heroes** for you, around the clock. It watches the game
-through screenshots. It does not touch your mouse or keyboard and does not care about window position.
-- Screen Resolution MUST be 100% (Right click desktop - display settings ...)
+A Windows OS window ("BH Bot Controller") that plays the browser version of **Bit Heroes** for you, around the clock. It watches the game through screenshots. It does not touch your mouse or keyboard and does not care about window position or resolution.
 
 **What it does**
 - Runs the AFK chain: Quest, PVP, World Boss, Raid, Trials, Gauntlet, GVG, Expedition, Invasion, plus fishing and bounties.
